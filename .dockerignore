@@ -1,0 +1,20 @@
+# Only application/build inputs enter the Render build context.
+**
+!pom.xml
+!mvnw
+!.mvn/
+!.mvn/wrapper/
+!.mvn/wrapper/maven-wrapper.properties
+!server-api/
+!server-api/pom.xml
+!server-api/src/
+!server-api/src/main/
+!server-api/src/main/**
+!web-client/
+!web-client/src/
+!web-client/src/**
+!web-client/scripts/
+!web-client/scripts/build.mjs
+!hosting/
+!hosting/Dockerfile.render
+!hosting/start-render.sh
