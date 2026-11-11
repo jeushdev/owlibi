@@ -1,0 +1,23 @@
+# Explicit project name prevents collision with historical Owlibi installations.
+name: owlibi-plsss-reference
+services:
+  db:
+    image: postgres:17.11@sha256:d74eeac9a635390a49bc21bd49fccd973de707e2a53a76ac49b552b8712ec46f
+    ports:
+      - "127.0.0.1:${OWLIBI_DB_PORT:-55580}:5432"
+    environment:
+      POSTGRES_USER: owlibi_admin
+      POSTGRES_DB: owlibi
+      POSTGRES_PASSWORD: ${OWLIBI_ADMIN_PASSWORD:?Set OWLIBI_ADMIN_PASSWORD in .env}
+      OWLIBI_MIGRATION_PASSWORD: ${OWLIBI_MIGRATION_PASSWORD:?Set OWLIBI_MIGRATION_PASSWORD in .env}
+      OWLIBI_RUNTIME_PASSWORD: ${OWLIBI_RUNTIME_PASSWORD:?Set OWLIBI_RUNTIME_PASSWORD in .env}
+    volumes:
+      - owlibi_data:/var/lib/postgresql/data
+      - ./scripts/db/bootstrap-roles.sh:/docker-entrypoint-initdb.d/10-owlibi-roles.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U owlibi_admin -d owlibi"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  owlibi_data:
