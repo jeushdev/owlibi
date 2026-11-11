@@ -1,0 +1,10 @@
+.env
+.tools/
+.cache/
+**/target/
+web-client/node_modules/
+web-client/test-results/
+web-client/playwright-report/
+target/
+node_modules/
+test-results/
