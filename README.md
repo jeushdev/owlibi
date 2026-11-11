@@ -143,7 +143,7 @@ AI tools and third-party libraries may be used as the instructor's policy allows
 
 ## Course details
 
-- Team: [team name]
-- Members: [names]
-- Course / section: OOP 101, [section]
-- Instructor: [instructor]
+- Team: 3 of a Kind
+- Members: Alvarez, John Allen P., Bantayaon, Jeush Samuel L., Fernando, Julia M.
+- Course / section: OOP 101, CS2103
+- Instructor: Ms. Fatima Marie Agdon
