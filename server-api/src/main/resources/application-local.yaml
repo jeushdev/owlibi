@@ -1,0 +1,6 @@
+# Loopback-only local HTTP. Hosted configuration is a separately approved slice.
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
