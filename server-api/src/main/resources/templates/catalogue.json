@@ -1,0 +1,382 @@
+{
+  "items": [
+    {
+      "id": "blank",
+      "name": "Blank",
+      "version": 2,
+      "categories": [],
+      "starterTasks": [],
+      "suggestedSettings": {
+        "effortScaleName": "Relative effort",
+        "effortScaleExamples": [
+          {
+            "points": "1.00",
+            "label": "Small scoped change"
+          },
+          {
+            "points": "2.00",
+            "label": "Several related steps"
+          },
+          {
+            "points": "3.00",
+            "label": "Moderate task"
+          },
+          {
+            "points": "5.00",
+            "label": "Substantial task"
+          },
+          {
+            "points": "8.00",
+            "label": "Large task to consider splitting"
+          }
+        ],
+        "overloadThreshold": "20.00",
+        "nearDueDays": 3
+      },
+      "initialization": {
+        "assigneePolicy": "CREATOR_ONLY",
+        "acceptancePolicy": "PENDING"
+      }
+    },
+    {
+      "id": "coding",
+      "name": "Coding",
+      "version": 1,
+      "categories": [
+        "Planning",
+        "Design",
+        "Implementation",
+        "Verification",
+        "Delivery"
+      ],
+      "starterTasks": [
+        {
+          "key": "task-01",
+          "title": "Clarify requirements",
+          "description": "Record the agreed inputs, outputs and acceptance examples.",
+          "category": "Planning",
+          "effortPoints": "2.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-02",
+          "title": "Design the solution",
+          "description": "Outline the components, data and interfaces needed for the agreed scope.",
+          "category": "Design",
+          "effortPoints": "3.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-03",
+          "title": "Implement the core flow",
+          "description": "Build the agreed core behavior and record how to run it.",
+          "category": "Implementation",
+          "effortPoints": "8.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-04",
+          "title": "Test and fix the core flow",
+          "description": "Check the acceptance examples and correct confirmed defects.",
+          "category": "Verification",
+          "effortPoints": "5.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-05",
+          "title": "Prepare the demo and notes",
+          "description": "Prepare a runnable demonstration and concise usage notes.",
+          "category": "Delivery",
+          "effortPoints": "2.00",
+          "dueDate": null
+        }
+      ],
+      "suggestedSettings": {
+        "effortScaleName": "Relative effort",
+        "effortScaleExamples": [
+          {
+            "points": "1.00",
+            "label": "Small scoped change"
+          },
+          {
+            "points": "2.00",
+            "label": "Several related steps"
+          },
+          {
+            "points": "3.00",
+            "label": "Moderate task"
+          },
+          {
+            "points": "5.00",
+            "label": "Substantial task"
+          },
+          {
+            "points": "8.00",
+            "label": "Large task to consider splitting"
+          }
+        ],
+        "overloadThreshold": "20.00",
+        "nearDueDays": 3
+      },
+      "initialization": {
+        "assigneePolicy": "CREATOR_ONLY",
+        "acceptancePolicy": "PENDING"
+      }
+    },
+    {
+      "id": "written",
+      "name": "Written",
+      "version": 1,
+      "categories": [
+        "Planning",
+        "Research",
+        "Drafting",
+        "Verification",
+        "Delivery"
+      ],
+      "starterTasks": [
+        {
+          "key": "task-01",
+          "title": "Clarify the topic and outline",
+          "description": "Record the agreed topic, sections and submission requirements.",
+          "category": "Planning",
+          "effortPoints": "2.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-02",
+          "title": "Gather and cite sources",
+          "description": "Collect relevant sources and record their citations.",
+          "category": "Research",
+          "effortPoints": "3.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-03",
+          "title": "Draft the sections",
+          "description": "Write the agreed sections using the outline and cited sources.",
+          "category": "Drafting",
+          "effortPoints": "5.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-04",
+          "title": "Revise and check citations",
+          "description": "Review clarity, consistency and source attribution.",
+          "category": "Verification",
+          "effortPoints": "3.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-05",
+          "title": "Format the final document",
+          "description": "Apply the agreed formatting and prepare the final document.",
+          "category": "Delivery",
+          "effortPoints": "2.00",
+          "dueDate": null
+        }
+      ],
+      "suggestedSettings": {
+        "effortScaleName": "Relative effort",
+        "effortScaleExamples": [
+          {
+            "points": "1.00",
+            "label": "Small scoped change"
+          },
+          {
+            "points": "2.00",
+            "label": "Several related steps"
+          },
+          {
+            "points": "3.00",
+            "label": "Moderate task"
+          },
+          {
+            "points": "5.00",
+            "label": "Substantial task"
+          },
+          {
+            "points": "8.00",
+            "label": "Large task to consider splitting"
+          }
+        ],
+        "overloadThreshold": "20.00",
+        "nearDueDays": 3
+      },
+      "initialization": {
+        "assigneePolicy": "CREATOR_ONLY",
+        "acceptancePolicy": "PENDING"
+      }
+    },
+    {
+      "id": "reporting-presentation",
+      "name": "Reporting/presentation",
+      "version": 1,
+      "categories": [
+        "Planning",
+        "Research",
+        "Production",
+        "Verification",
+        "Delivery"
+      ],
+      "starterTasks": [
+        {
+          "key": "task-01",
+          "title": "Clarify the message and outline",
+          "description": "Record the audience, key message and agreed presentation structure.",
+          "category": "Planning",
+          "effortPoints": "2.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-02",
+          "title": "Gather supporting material",
+          "description": "Collect sources and examples that support the agreed message.",
+          "category": "Research",
+          "effortPoints": "3.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-03",
+          "title": "Prepare slides and speaker notes",
+          "description": "Create the agreed slides and notes with source attribution.",
+          "category": "Production",
+          "effortPoints": "5.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-04",
+          "title": "Rehearse and revise",
+          "description": "Rehearse the delivery and revise unclear sections.",
+          "category": "Verification",
+          "effortPoints": "3.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-05",
+          "title": "Prepare the final presentation",
+          "description": "Check the final files and prepare the presentation handoff.",
+          "category": "Delivery",
+          "effortPoints": "2.00",
+          "dueDate": null
+        }
+      ],
+      "suggestedSettings": {
+        "effortScaleName": "Relative effort",
+        "effortScaleExamples": [
+          {
+            "points": "1.00",
+            "label": "Small scoped change"
+          },
+          {
+            "points": "2.00",
+            "label": "Several related steps"
+          },
+          {
+            "points": "3.00",
+            "label": "Moderate task"
+          },
+          {
+            "points": "5.00",
+            "label": "Substantial task"
+          },
+          {
+            "points": "8.00",
+            "label": "Large task to consider splitting"
+          }
+        ],
+        "overloadThreshold": "20.00",
+        "nearDueDays": 3
+      },
+      "initialization": {
+        "assigneePolicy": "CREATOR_ONLY",
+        "acceptancePolicy": "PENDING"
+      }
+    },
+    {
+      "id": "filming-video",
+      "name": "Filming/video",
+      "version": 1,
+      "categories": [
+        "Planning",
+        "Preparation",
+        "Production",
+        "Post-production",
+        "Delivery"
+      ],
+      "starterTasks": [
+        {
+          "key": "task-01",
+          "title": "Clarify the brief and storyboard",
+          "description": "Record the agreed message, shots and production requirements.",
+          "category": "Planning",
+          "effortPoints": "3.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-02",
+          "title": "Prepare assets and recording plan",
+          "description": "Prepare the required assets and a practical recording plan.",
+          "category": "Preparation",
+          "effortPoints": "2.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-03",
+          "title": "Record the footage",
+          "description": "Record the agreed scenes and retain the required source footage.",
+          "category": "Production",
+          "effortPoints": "5.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-04",
+          "title": "Edit and review the video",
+          "description": "Assemble the agreed video and review its content and playback.",
+          "category": "Post-production",
+          "effortPoints": "8.00",
+          "dueDate": null
+        },
+        {
+          "key": "task-05",
+          "title": "Prepare the final video",
+          "description": "Check the final output and prepare the delivery file.",
+          "category": "Delivery",
+          "effortPoints": "2.00",
+          "dueDate": null
+        }
+      ],
+      "suggestedSettings": {
+        "effortScaleName": "Relative effort",
+        "effortScaleExamples": [
+          {
+            "points": "1.00",
+            "label": "Small scoped change"
+          },
+          {
+            "points": "2.00",
+            "label": "Several related steps"
+          },
+          {
+            "points": "3.00",
+            "label": "Moderate task"
+          },
+          {
+            "points": "5.00",
+            "label": "Substantial task"
+          },
+          {
+            "points": "8.00",
+            "label": "Large task to consider splitting"
+          }
+        ],
+        "overloadThreshold": "20.00",
+        "nearDueDays": 3
+      },
+      "initialization": {
+        "assigneePolicy": "CREATOR_ONLY",
+        "acceptancePolicy": "PENDING"
+      }
+    }
+  ]
+}
