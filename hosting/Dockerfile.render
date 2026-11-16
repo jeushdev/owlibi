@@ -1,0 +1,29 @@
+# Deployment image; the older H0 Dockerfiles remain diagnostic-only.
+FROM node:24-bookworm-slim@sha256:01d566e8d94d8c619591d78652babfccd3c6992a3dffa9ed5ab39e11cf6c70e9 AS frontend
+WORKDIR /build/web-client
+COPY web-client/src/ src/
+COPY web-client/scripts/build.mjs scripts/build.mjs
+RUN node scripts/build.mjs
+
+FROM eclipse-temurin:21-jdk-jammy@sha256:4b1a74fbffbe6b4e7b6f0171a472478282fb463790a51edf10e465d578f22b69 AS build
+# The wrapper's checksum pins the ZIP; without unzip it falls back to a different archive.
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+COPY server-api/pom.xml server-api/pom.xml
+COPY server-api/src/main/ server-api/src/main/
+COPY --from=frontend /build/server-api/target/generated-resources/ server-api/target/generated-resources/
+RUN chmod +x mvnw && ./mvnw -B -DskipTests package
+
+FROM eclipse-temurin:21-jre-jammy@sha256:1eac8b8fee11ca7d6725a48bc5d41992ed1561504ebae25490d2d062847e8269
+RUN groupadd --gid 10001 owlibi && useradd --uid 10001 --gid 10001 --no-create-home owlibi \
+    && mkdir -p /opt/owlibi /var/lib/owlibi/tmp \
+    && chown 10001:10001 /var/lib/owlibi/tmp && chmod 700 /var/lib/owlibi/tmp
+WORKDIR /opt/owlibi
+COPY --from=build /build/server-api/target/server-api-0.1.0-SNAPSHOT.jar app.jar
+COPY --chmod=0555 hosting/start-render.sh /opt/owlibi/start-render.sh
+USER 10001:10001
+EXPOSE 10000
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/opt/owlibi/start-render.sh"]

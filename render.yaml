@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: owlibi-api
+    runtime: docker
+    plan: free
+    region: singapore
+    numInstances: 1
+    dockerContext: .
+    dockerfilePath: ./hosting/Dockerfile.render
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: OWLIBI_RUNTIME_URL
+        sync: false
+      - key: OWLIBI_RUNTIME_USER
+        sync: false
+      - key: OWLIBI_RUNTIME_PASSWORD
+        sync: false
+      - key: OWLIBI_MIGRATION_URL
+        sync: false
+      - key: OWLIBI_MIGRATION_USER
+        sync: false
+      - key: OWLIBI_MIGRATION_PASSWORD
+        sync: false
