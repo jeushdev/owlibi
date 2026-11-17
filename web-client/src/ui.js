@@ -272,3 +272,283 @@ function projectWizard(s, canWrite) {
 function taskTable(s, tasks) {
   return `<div class="table-scroll" tabindex="0" role="region" aria-label="Task table, scroll for all columns"><table class="compact"><thead><tr>${['Task', 'Status', 'Assignees', 'Points', 'Due'].map(c => `<th scope="col"${c === 'Points' ? ' class="numeric"' : ''}>${c}</th>`).join('')}</tr></thead><tbody>${tasks.map(t => `<tr class="${s.selected === t.id ? 'selected' : ''}"><td><button type="button" class="task-title" id="task-${e(t.id)}" data-task="${e(t.id)}" aria-label="Open task ${e(t.title)}">${e(t.title)}</button><small>${t.status === 'REVIEW' ? 'Waiting for leader review' : t.assigneeAcceptances.some(a => !a.accepted) ? 'Agreement pending' : 'Current agreement accepted'}</small></td><td>${badge(t.status)}</td><td>${e(t.assigneeAcceptances.map(a => a.displayName).join(', '))}</td><td class="numeric">${e(pointNumber(t.effortPoints))}</td><td>${e(t.dueDate || 'No due date')}</td></tr>`).join('')}</tbody></table></div>`;
 }
+function board(s, tasks) {
+  const columns = statuses.map(status => tasks.filter(t => t.status === status));
+  const all = columns.flat();
+  const roving = all.some(t => t.id === s.boardFocus) ? s.boardFocus : all[0]?.id;
+  return `<p id="board-help" class="sr-only">Use arrow keys to move, Home or End to jump within a column, and Enter or Space to open a task.</p>
+    <div class="board-scroll" tabindex="0" role="region" aria-label="Task Board, scroll for all columns">
+      <div class="board" aria-describedby="board-help">${columns.map((items, column) => {
+        const status = statuses[column];
+        return `<section class="board-lane lane-${status.toLowerCase()}" aria-label="${labels[status]}">
+          <h2><span class="lane-dot" aria-hidden="true"></span>${labels[status]}<small>${items.length}</small></h2>
+          ${items.length ? items.map(task => `<button type="button" class="card ${s.selected === task.id ? 'selected' : ''}"
+            id="task-${e(task.id)}" data-task="${e(task.id)}" data-card="true" tabindex="${task.id === roving ? 0 : -1}" aria-label="Open task ${e(task.title)}">
+            <strong>${e(task.title)}</strong>
+            <span class="card-assignees">${e(task.assigneeAcceptances.map(a => a.displayName).join(', '))}</span>
+            <span class="card-metadata"><span>${e(pointAmount(task.effortPoints))}</span><span>${e(task.dueDate ? `Due ${task.dueDate}` : 'No due date')}</span></span>
+            ${task.assigneeAcceptances.some(a => !a.accepted) ? '<small class="agreement-pending">Agreement pending</small>' : ''}
+          </button>`).join('') : '<p class="empty">No tasks in this stage.</p>'}
+        </section>`;
+      }).join('')}</div>
+    </div>
+    ${tasks.some(t => t.status === 'CANCELLED') ? `<h2>Cancelled tasks</h2>${taskTable(s, tasks.filter(t => t.status === 'CANCELLED'))}` : ''}`;
+}
+
+function inspector(s, visible, canWrite) {
+  if (s.form && ['task', 'edit', 'reason'].includes(s.form)) return form(s, canWrite);
+  const task = s.board.tasks.find(t => t.id === s.selected);
+  if (!task) return '';
+  const index = visible.findIndex(t => t.id === task.id);
+  const leader = s.board.project.role === 'LEADER';
+  const actions = actionsFor(task, s.board.project.role, s.user.id);
+  const canAccept = task.assigneeIds.includes(s.user.id) && !task.currentUserAcceptedAgreement && task.status !== 'CANCELLED';
+  const accepted = task.assigneeAcceptances.filter(a => a.accepted).length;
+  return `<section aria-labelledby="inspector-title">
+    <div class="inspector-top"><span>${index < 0 ? 'Outside current filters' : `${index + 1} of ${visible.length}`}</span>${button('close-inspector', 'Close inspector')}</div>
+    <header class="inspector-heading"><h2 id="inspector-title" tabindex="-1">${e(task.title)}</h2>${badge(task.status)}</header>
+    ${textBlock(task.description || 'No description.')}
+    <section class="inspector-section"><h3>Task details</h3>
+      <dl><dt>Category</dt><dd>${e(task.category || '—')}</dd><dt>Assignees</dt><dd>${e(task.assigneeAcceptances.map(a => a.displayName).join(', '))}</dd>
+        <dt>Points</dt><dd>${e(pointNumber(task.effortPoints))}</dd><dt>Due</dt><dd>${e(task.dueDate || 'No due date')}</dd><dt>Task version</dt><dd>${e(task.version)}</dd></dl>
+    </section>
+    <section class="agreement inspector-section">
+      <div class="section-line"><h3>Assignment agreement</h3><span class="note">Version ${e(task.agreementVersion)}</span></div>
+      <p class="agreement-progress"><strong>${accepted} of ${task.assigneeAcceptances.length} accepted</strong><span>All current assignees must accept.</span></p>
+      <ul class="agreement-register">${task.assigneeAcceptances.map((a, i) => `<li><span class="person-initial" aria-hidden="true">${e(initial(a.displayName))}</span><div><strong>${e(a.displayName)}</strong><small>Assignee ${i + 1}${a.accepted ? ` · ${e(time(a.acceptedAtUtc))}` : ''}</small></div><span class="${a.accepted ? 'acceptance-ok' : 'agreement-pending'}">${a.accepted ? 'Accepted' : 'Pending'}</span></li>`).join('')}</ul>
+      ${canAccept ? button('accept-task', 'Accept current assignment and points', !canWrite, 'class="primary"') : ''}
+    </section>
+    ${leader || actions.length ? `<section class="inspector-section"><h3>Task actions</h3>
+      <div class="action-stack">${actions.map((action, i) => {
+        const extra = action.action === 'CANCEL' ? 'class="danger-action"' : i === 0 && !canAccept ? 'class="primary"' : '';
+        return `<div>${button(`action-${action.action}`, actionLabels[action.action], !canWrite || !action.enabled, extra)}${action.explanation ? `<small>${e(action.explanation)}</small>` : ''}</div>`;
+      }).join('')}
+      ${leader ? !['DONE', 'CANCELLED'].includes(task.status) ? button('edit-task', 'Edit task', !canWrite) : `<p class="note">${task.status === 'DONE' ? 'Reopen Done before editing.' : 'Cancelled tasks are immutable.'}</p>` : ''}</div></section>` : ''}
+    <div class="actions inspector-paging">${button('previous-task', 'Previous task', index <= 0)}${button('next-task', 'Next task', index < 0 || index >= visible.length - 1)}</div>
+  </section>`;
+}
+const initial = name => Array.from(name || '?')[0].toUpperCase();
+
+function tasksPage(s, canWrite) {
+  const tasks = visibleTasks(s.board.tasks, s.filters, s.user.id);
+  const pending = pendingTasks(s.board.tasks, s.user.id);
+  const leader = s.board.project.role === 'LEADER';
+  return `${pageHeading('Tasks', 'Manage assignments, track progress, and review team work.', leader ? button('new-task', 'New task', !canWrite, 'class="primary"') : '')}
+    <div class="task-controls">
+      <div class="task-view-row">
+        <div class="toolbar" role="group" aria-label="Task view">${button('view-table', 'Table', false, `aria-pressed="${s.mode === 'table'}"`)}${button('view-board', 'Board', false, `aria-pressed="${s.mode === 'board'}"`)}</div>
+        ${button('pending', `${pending.length} awaiting your acceptance`, !pending.length)}
+      </div>
+      <div class="filters"><label>Assignment<select id="assignment"><option value="all">All assignees</option><option value="mine" ${s.filters.assignment === 'mine' ? 'selected' : ''}>Assigned to me</option>${s.board.members.map((m, i) => `<option value="${e(m.id)}" ${s.filters.assignment === m.id ? 'selected' : ''}>${e(m.displayName)} · member ${i + 1}</option>`).join('')}</select></label><label>Status<select id="status"><option value="active" ${s.filters.status === 'active' ? 'selected' : ''}>All except Cancelled</option><option value="all" ${s.filters.status === 'all' ? 'selected' : ''}>All including Cancelled</option>${[...statuses, 'CANCELLED'].map(st => `<option value="${st}" ${s.filters.status === st ? 'selected' : ''}>${labels[st]}</option>`).join('')}</select></label><label class="search">Search<input type="search" id="search" value="${e(s.filters.search)}" placeholder="Title, description or assignee"></label>${button('clear-filters', 'Clear filters')}</div>
+    </div>
+    <p id="task-count" class="note">${tasks.length} / ${s.board.totalTasks} tasks</p>
+    ${!tasks.length ? `<div class="empty">${s.board.totalTasks ? 'No tasks match these filters.' : 'No tasks yet. The leader can create the first task.'}</div>` : s.mode === 'table' ? taskTable(s, tasks) : board(s, tasks)}`;
+}
+function members(s, canWrite) {
+  const members = s.board.members;
+  const leader = s.board.project.role === 'LEADER';
+  const actions = leader ? button('create-invite', 'Create invitation', !canWrite || members.length >= 6, 'class="primary"') : '';
+  return `${pageHeading('Members', 'See who is on this project and who leads it.', actions)}
+    ${s.invitation ? `<section class="invitation-display"><h2>Project invitation</h2>
+      <p>Share this single-use token. It expires ${e(time(s.invitation.expiresAtUtc))}.</p>
+      <label for="invitation-token">Invitation token</label><input id="invitation-token" readonly value="${e(s.invitation.token)}">
+      <div class="actions">${button('copy-invite', 'Copy invitation token')}${button('clear-invite', 'Clear token display')}</div></section>` : ''}
+    <section class="content-panel" aria-labelledby="roster-title">
+      <div class="section-line"><h2 id="roster-title">Project team</h2><span class="note">${members.length} of 6 places filled</span></div>
+      <ul class="member-list">${members.map((member, i) => `<li>
+        <span class="person-initial" aria-hidden="true">${e(initial(member.displayName))}</span>
+        <div><strong>${e(member.displayName)}${member.id === s.user.id ? ' (you)' : ''}</strong><small>Member ${i + 1}</small></div>
+        <span class="role-label">${member.role === 'LEADER' ? 'Leader' : 'Member'}</span></li>`).join('')}</ul>
+      ${leader ? members.length === 6 ? '<p class="note">This project has reached its member limit.</p>' : '' : '<p class="note">The project leader manages invitations.</p>'}
+    </section>`;
+}
+
+const eventTitles = {
+  TASK_CREATED: 'Task created', TASK_EDITED: 'Task updated', START: 'Task started', SUBMIT_REVIEW: 'Review submitted',
+  APPROVE: 'Task approved', RETURN: 'Returned for changes', CANCEL: 'Task cancelled', REOPEN: 'Task reopened',
+  AGREEMENT_ACCEPTED: 'Assignment accepted', PROJECT_CREATED: 'Project created', SETTINGS_CHANGED: 'Project rules updated',
+  MEMBER_JOINED: 'Member joined', INVITATION_CREATED: 'Invitation created'
+};
+const changedFieldLabels = {
+  title: 'Title', description: 'Description', category: 'Category', dueDate: 'Due date', effortPoints: 'Effort points',
+  assigneeIds: 'Assignees', effortScaleName: 'Effort scale', effortScaleExamples: 'Effort examples',
+  overloadThreshold: 'Workload threshold', nearDueDays: 'Near-due window'
+};
+function activity(s) {
+  const taskTitles = new Map(s.board.tasks.map(task => [task.id, task.title]));
+  return `${pageHeading('Activity', 'Track task updates, agreements, and project changes.')}
+    <section class="content-panel" aria-labelledby="activity-feed-title">
+      <div class="section-line"><h2 id="activity-feed-title">Project history</h2><span class="note">Newest first · Manila time</span></div>
+      ${s.events.length ? `<ol class="activity">${s.events.map(item => {
+        const record = item.changeSummary || {};
+        const task = item.taskId ? record.after?.title || taskTitles.get(item.taskId) : null;
+        const previousStatus = labels[record.before?.status];
+        const currentStatus = labels[record.after?.status];
+        const changed = record.changedFields?.map(field => changedFieldLabels[field] || field) || [];
+        const title = eventTitles[item.eventType] || item.eventType.toLowerCase().replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
+        return `<li><span class="activity-icon">${icon(item.taskId ? 'tasks' : 'activity')}</span><div>
+          <div class="activity-heading"><h3>${e(title)}</h3><time datetime="${e(item.occurredAtUtc)}">${e(time(item.occurredAtUtc))}</time></div>
+          <p class="note">${e(item.actorName)}${task ? ` · ${e(task)}` : ''}</p>
+          ${previousStatus && currentStatus && previousStatus !== currentStatus ? `<p>${e(previousStatus)} → ${e(currentStatus)}</p>` : ''}
+          ${changed.length ? `<p>Updated ${e(changed.join(', '))}</p>` : ''}
+          ${item.reason ? textBlock(`Reason: ${item.reason}`) : ''}
+        </div></li>`;
+      }).join('')}</ol>` : `<p class="empty">${s.loading ? 'Loading activity…' : 'Project changes will appear here.'}</p>`}
+      ${s.eventCursor ? button('older-activity', 'Load older activity', s.loading) : ''}
+    </section>`;
+}
+function resourceStatus(s, key) {
+  const state = s.resources[key];
+  const settingsRequired = state.error?.code === 'SETTINGS_REQUIRED';
+  const name = { settings: 'project rules', contribution: 'completed points', workload: 'workload' }[key];
+  let message = 'Up to date.';
+  if (state.loading) message = `Loading ${name}…`;
+  else if (settingsRequired) message = s.board.project.role === 'LEADER'
+    ? 'Set up rules in Project settings to view Workload.'
+    : 'The project leader must set up project rules before Workload is available.';
+  else if (state.error) message = `Could not load ${name}.${state.data ? ' Showing the last available result, which may be stale.' : ''}`;
+  else if (state.stale) message = state.data ? `Stale result. ${state.reason || 'Refresh to check for updates.'}` : `${name[0].toUpperCase()}${name.slice(1)} unavailable. Refresh to try again.`;
+  return `<div class="result-state${message === 'Up to date.' ? ' sr-only' : ''}" id="state-${key}" role="status" aria-live="polite">${e(message)}</div>${!state.loading && !settingsRequired && (state.error || state.stale) ? button(`retry-resource-${key}`, 'Try again', s.busy) : ''}`;
+}
+function settingsPage(s, canWrite) {
+  const state = s.resources.settings;
+  const rules = state.data;
+  const leader = s.board.project.role === 'LEADER';
+  const actions = leader && s.form !== 'settings' ? button('edit-rules', rules?.configured ? 'Edit rules' : 'Set up rules', !canWrite || state.stale || state.loading, 'class="primary"') : '';
+  return `${pageHeading('Project settings', 'Set the effort scale, workload warnings, and due-date rules.', actions)}
+    ${resourceStatus(s, 'settings')}
+    ${!leader ? '<p class="note">Read-only project rules</p>' : ''}
+    ${s.form === 'settings' ? form(s, canWrite) : rules?.configured ? `<div class="settings-overview">
+      <section class="content-panel"><h2>Effort scale</h2><p class="note">${e(rules.effortScaleName)} · Estimate task size</p>
+        ${effortPointList(rules.effortScaleExamples)}</section>
+      <section class="content-panel"><h2>Workload and deadlines</h2><dl class="settings-facts">
+        <dt>Overload threshold</dt><dd>Above ${e(pointAmount(rules.overloadThreshold))}</dd>
+        <dt>Near-due window</dt><dd>${e(rules.nearDueDays)} days after today, plus today</dd>
+        <dt>Project time zone</dt><dd>${e(rules.projectZone)}</dd>
+        <dt>Rules version</dt><dd>${e(rules.settingsVersion)}</dd>
+      </dl></section>
+    </div>` : rules ? `<section class="content-panel">${rulesDetail(rules)}</section>` : ''}`;
+}
+
+function workloadMetrics(counts) {
+  return `<dl class="workload-metrics" aria-label="Project totals">${[
+    ['Open tasks', counts.openTasks], ['In review', counts.reviewTasks],
+    ['Overdue', counts.overdueTasks], ['Near due', counts.nearDueTasks]
+  ].map(([label, count]) => `<div><dt>${label}</dt><dd>${e(count)}</dd></div>`).join('')}</dl>`;
+}
+
+function workloadGauge(member, threshold) {
+  const total = Number(member.remainingPoints);
+  const limit = Number(threshold);
+  return `<span class="workload-value">${e(member.remainingPointsDisplay)}
+    <meter class="workload-meter${member.overloaded ? ' is-over' : ''}" aria-hidden="true" min="0" max="${e(limit)}" value="${e(Math.min(total, limit))}"></meter></span>`;
+}
+
+function reportPanel(s, canWrite) {
+  return `<section class="report-panel" aria-label="Professor report"><div class="report-copy"><h2>Professor report</h2><p>Export project details, tasks, completed points, and activity to Excel.</p></div>${s.board.project.role === 'LEADER' ? `<div class="actions">${button('export-report', 'Export professor report (.xlsx)', !canWrite || s.exportState?.running, 'aria-describedby="report-status report-help"')}${s.exportState?.running ? button('cancel-report', 'Cancel report receipt', false, 'aria-describedby="report-help"') : ''}</div>` : '<p>Only the project leader can export.</p>'}<p id="report-status">${e(s.exportState?.message || (s.board.project.role === 'LEADER' ? 'Ready to export.' : ''))}</p>${s.exportState?.running ? `<p id="report-time">${s.exportState.remaining} seconds remaining for receipt</p>` : ''}${s.board.project.role === 'LEADER' ? '<p class="note" id="report-help">Your browser handles saving. If you cancel, report generation may continue on the server.</p>' : ''}</section>`;
+}
+
+function summaryPage(s, key, canWrite) {
+  const state = s.resources[key], data = state.data, completed = key === 'contribution';
+  const title = completed ? 'Completed points' : 'Workload';
+  const actions = s.board.project.role === 'LEADER'
+    ? button('edit-rules', data?.rules ? 'Edit rules' : 'Set up rules', !canWrite || s.resources.settings.stale)
+    : '';
+  const description = completed ? 'See each member’s share of effort points from approved tasks.' : 'Track remaining points and upcoming or overdue tasks.';
+  let content = `${pageHeading(title, description, data && !completed ? actions : '')}${resourceStatus(s, key)}`;
+  if (!data) return content + (completed ? reportPanel(s, canWrite) : '');
+  content += `<p class="note">Updated <time data-result-time="${key}" datetime="${e(data.snapshot.snapshotAtUtc)}">${e(time(data.snapshot.snapshotAtUtc))}</time>${completed ? '' : ` · Due dates as of ${e(data.projectToday)}`}</p>`;
+  if (completed) {
+    content += `<p class="completed-total"><span>Total completed points</span><strong>${e(pointNumber(data.totalCompletedPointsDisplay))}</strong></p>`;
+  } else {
+    content += workloadMetrics(data.projectCounts);
+    content += `<p class="note">Warning above ${e(pointAmount(data.rules.overloadThreshold))} per member, before rounding.</p>`;
+  }
+  if (completed && data.empty) content += '<p class="empty" id="no-completed">No completed tasks yet.</p>';
+  else content += `<div class="table-scroll" tabindex="0" role="region" aria-label="${title} table, scroll for all columns"><table class="summary-table${completed ? ' contribution-table' : ''}"><caption>${completed ? 'Completed effort-points share' : 'Workload by member'}</caption><thead><tr>${(completed ? ['Member', 'Completed points', 'Completed effort-points share'] : ['Member', 'Remaining points', 'Overdue', 'Near due', 'Points warning']).map((label, i) => `<th scope="col"${i > 0 && (completed || i < 4) ? ' class="numeric"' : ''}>${label}</th>`).join('')}</tr></thead><tbody>${data.members.map((m, i) => `<tr data-member="${e(m.userId)}"><th scope="row">${e(m.displayName)}<small>Member ${i + 1}</small></th>${completed ? `<td class="numeric">${e(m.completedPointsDisplay)}</td><td class="numeric">${e(m.sharePercentDisplay)}% <meter aria-hidden="true" min="0" max="100" value="${e(m.sharePercentDisplay)}"></meter></td>` : `<td class="numeric">${workloadGauge(m, data.rules.overloadThreshold)}</td><td class="numeric">${e(m.overdueCount)}</td><td class="numeric">${e(m.nearDueCount)}</td><td>${m.overloaded ? '<span class="agreement-pending">Over threshold</span>' : 'None'}</td>`}</tr>`).join('')}</tbody></table></div>`;
+  if (completed) {
+    content += reportPanel(s, canWrite);
+    content += `<details id="result-tasks"><summary>Completed task allocations</summary>
+      ${data.allocations.length ? `<ul class="breakdown-list">${data.allocations.map(task => `<li>
+        <div class="section-line"><strong>${e(task.title)}</strong><span class="note">${e(pointAmount(task.effortPoints))} total</span></div>
+        <span>${e(task.assigneeIds.map(id => {
+          const index = data.members.findIndex(member => member.userId === id);
+          return index < 0 ? 'Member' : `${data.members[index].displayName} (Member ${index + 1})`;
+        }).join(', '))}</span>
+        <small>Each assignee receives ${e(task.perAssigneePoints)} points · Task ID ${e(task.taskId)}</small>
+      </li>`).join('')}</ul>` : '<p>No completed task allocations.</p>'}</details>`;
+  } else {
+    const dateLabels = { OVERDUE: 'Overdue', NEAR_DUE: 'Near due', LATER: 'Due later' };
+    content += `<details id="result-tasks"><summary>Task breakdown</summary>
+      ${data.tasks.length ? `<ul class="breakdown-list">${data.tasks.map(task => `<li>
+        <div class="section-line"><strong>${e(task.title)}</strong>${badge(task.status)}</div>
+        <div class="breakdown-meta">
+          <span>${task.dueDate ? `Due ${e(task.dueDate)} · ${e(dateLabels[task.dateState])}` : 'No due date'}</span>
+          ${task.status === 'REVIEW' ? '' : `<span>${e(pointAmount(task.perAssigneeRemainingPoints))} per assignee</span>`}
+        </div>
+        <span>${e(task.assigneeIds.map(id => {
+          const index = data.members.findIndex(member => member.userId === id);
+          return index < 0 ? id : `${data.members[index].displayName} (Member ${index + 1})`;
+        }).join(', '))}</span>
+        <small>Task ID ${e(task.taskId)}</small>
+      </li>`).join('')}</ul>` : '<p>No open tasks or tasks in Review.</p>'}</details>`;
+  }
+  if (completed && actions) content += actions;
+  if (s.form === 'settings') content += form(s, canWrite);
+  return content;
+}
+export function markup(s) {
+  const canWrite = !!s.user && !s.stale && !s.busy && !s.loading && !s.revalidating && !s.unknown;
+  const side = `<aside class="sidebar"><div class="brand-group"><img class="brand-mark" src="/brand-logo.png" width="80" height="80" alt=""><p class="brand">Owlibi</p>${s.board ? navigationButton('workspace-menu', 'Menu', 'menu', false, `aria-expanded="${s.navOpen}" aria-controls="project-navigation"`) : ''}</div>${s.user ? `<div class="project-context">${navigationButton('projects', 'Projects', 'projects')}${s.board ? `<p class="project-name">${e(s.board.project.name)}</p><p id="role-context">${s.board.project.role === 'LEADER' ? 'Leader' : 'Member'}</p>` : ''}</div>${s.board ? `<nav id="project-navigation" aria-label="Project navigation"${s.navOpen ? ' class="is-open"' : ''}>${['tasks', 'workload', 'completed', 'activity', 'members', 'settings'].map(view => navigationButton(`nav-${view}`, navigationLabel(view), view, false, s.page === view ? 'aria-current="page"' : '')).join('')}</nav>` : ''}<div class="account-block"><span class="account-avatar" aria-hidden="true">${e(initial(s.user.displayName))}</span><span id="account-context">${e(s.user.displayName)}</span></div>${navigationButton('logout', 'Sign out', 'logout', s.busy)}` : ''}<div class="theme-controls">${button('theme-light', 'Light', false, `aria-pressed="${s.theme === 'light'}"`)}${button('theme-dark', 'Dark', false, `aria-pressed="${s.theme === 'dark'}"`)}</div></aside>`;
+  const chrome = `<header class="app-header" aria-label="Workspace context"><div class="workspace-location">${s.user && s.board ? `<span class="breadcrumb-project">${e(s.board.project.name)}</span><span class="breadcrumb-separator" aria-hidden="true">/</span>` : ''}<span>${s.user ? e(navigationLabel(s.page)) : s.form === 'register' ? 'Create account' : 'Sign in'}</span></div><span class="workspace-mode">${s.user && s.board ? s.board.project.role === 'LEADER' ? 'Leader workspace' : 'Member workspace' : 'Project workspace'}</span></header>`;
+  let content = '', detail = '';
+  if (!s.user) content = s.revalidating ? '<h1 id="page-title" tabindex="-1">Checking session…</h1>' : form(s, true);
+  else if (s.page === 'projects') {
+    content = s.form === 'project' ? projectWizard(s, canWrite) : projectsPage(s, canWrite);
+  } else if (!s.board) content = `<h1 id="page-title" tabindex="-1">${s.loading ? 'Loading project…' : 'Project unavailable'}</h1>`;
+  else {
+    content = s.page === 'tasks' ? tasksPage(s, canWrite) : s.page === 'members' ? members(s, canWrite) : s.page === 'settings' ? settingsPage(s, canWrite) : s.page === 'workload' ? summaryPage(s, 'workload', canWrite) : s.page === 'completed' ? summaryPage(s, 'contribution', canWrite) : activity(s);
+    if (s.page === 'tasks') detail = inspector(s, visibleTasks(s.board.tasks, s.filters, s.user.id), canWrite);
+  }
+  return `${side}${chrome}<main class="workspace" id="main-content" tabindex="-1"><div class="connection"><p id="feedback"${['Signed in.', 'Session revalidated.'].includes(s.notice) ? ' class="sr-only"' : isActionConfirmation(s.notice) ? ' class="feedback-success"' : ''}>${e(s.notice)}</p><p id="connection-state">${e(connectionState(s))}</p>${s.user || s.logoutUnconfirmed ? button('refresh', s.logoutUnconfirmed ? 'Recheck server session' : 'Refresh', s.busy || s.loading || s.revalidating, 'class="quiet-button"') : ''}${s.unknown ? `<p>Write outcome unknown. Inspect the authoritative view before deliberate resubmission. ${s.unknown === 'invitation' ? 'A lost invitation token cannot be recovered; choose deliberately whether to create another.' : ''}</p>${button('inspect-unknown', 'Inspect authoritative state', s.loading)}` : ''}</div>${content}</main>${detail ? `<aside class="inspector" aria-label="Task inspector">${detail}</aside>` : ''}`;
+}
+export function capturePosition(root) {
+  return { document: [window.scrollX, window.scrollY], regions: [...root.querySelectorAll('.workspace,.inspector,.table-scroll,.board-scroll')].map(el => [el.className, el.scrollTop, el.scrollLeft]) };
+}
+export function restorePosition(root, position) {
+  if (!position) return;
+  for (const [cls, top, left] of position.regions) { const el = [...root.querySelectorAll('[class]')].find(el => el.className === cls); if (el) { el.scrollTop = top; el.scrollLeft = left; } }
+  window.scrollTo(...position.document);
+}
+export function render(root, s, { backgroundRefresh = false, preserveUnchanged = false } = {}) {
+  // Unchanged polls retain DOM identity, including VoiceOver's reading cursor.
+  // Writes still wait in main.js; stale/permission gates remain authoritative.
+  const view = backgroundRefresh ? { ...s, loading: false, resources: Object.fromEntries(Object.entries(s.resources).map(([key, value]) => [key, { ...value, loading: value.data ? false : value.loading }])) } : s;
+  // Draft inputs already update their live DOM values without a full render.
+  const structure = markup({ ...view, confirmedAt: null, draft: {}, resources: Object.fromEntries(Object.entries(view.resources).map(([key, value]) => [key, { ...value, data: value.data?.snapshot ? { ...value.data, snapshot: { ...value.data.snapshot, snapshotAtUtc: null } } : value.data }])) });
+  const updateConnection = () => {
+    const connection = document.getElementById('connection-state');
+    if (connection && connection.textContent !== connectionState(s)) connection.textContent = connectionState(s);
+    const refresh = document.getElementById('refresh');
+    if (refresh) refresh.disabled = s.busy || s.loading || s.revalidating;
+    for (const el of root.querySelectorAll('[data-result-time]')) { const at = s.resources[el.dataset.resultTime].data?.snapshot.snapshotAtUtc; if (at) { el.textContent = time(at); el.dateTime = at; } }
+  };
+  if (backgroundRefresh && preserveUnchanged && renderedStructure.get(root) === structure) { updateConnection(); return; }
+  const active = document.activeElement, focusId = active?.id;
+  const selection = active && 'selectionStart' in active ? [active.selectionStart, active.selectionEnd] : null;
+  const position = capturePosition(root);
+  const openDetails = [...root.querySelectorAll('details[id][open]')].map(el => el.id);
+  const announcement = document.getElementById('announcement');
+  const message = s.busy ? 'Waiting for server confirmation.' : s.loading && !backgroundRefresh ? 'Refreshing project data.' : s.notice;
+  if (announcement && announcement.textContent !== message) announcement.textContent = message;
+  root.innerHTML = markup(view);
+  for (const id of openDetails) { const el = document.getElementById(id); if (el?.tagName === 'DETAILS') el.open = true; }
+  renderedStructure.set(root, structure);
+  updateConnection();
+  document.documentElement.dataset.theme = s.theme;
+  root.classList.toggle('with-inspector', !!root.querySelector('.inspector'));
+  root.classList.toggle('is-signed-out', !s.user);
+  restorePosition(root, position);
+  const restored = focusId && document.getElementById(focusId);
+  if (restored && !restored.disabled) { restored.focus({ preventScroll: true }); if (selection && typeof restored.setSelectionRange === 'function' && ['text', 'search', 'password', 'textarea'].includes(restored.type)) restored.setSelectionRange(...selection); }
+}
