@@ -350,3 +350,302 @@ async function refresh({ cursor = null, inspect = false, reviewReason = false, r
   }
   finally { if (reading === own) { s.loading = false; draw(background); reading = null; restoreFormFocus(); if (s.page === 'workload' && s.resources.workload.reason.startsWith('Server date basis')) setTimeout(() => { if (s.user && isVisible() && s.page === 'workload') void refresh({ background: true }); }, 0); } }
 }
+async function mutate(path, body, onSuccess, { method = 'POST', auth = false } = {}) {
+  if (!auth && s.loading && reading?.background && !s.busy && !s.unknown && !s.stale) {
+    announce('Refresh is still in progress. Your operation was not sent. Wait for confirmation, then submit deliberately.'); return;
+  }
+  if (s.busy || s.unknown || (!auth && (s.stale || s.loading || !s.user))) return;
+  stopPoll(); activity.pause(); cancelReads(); invalidateSummaries('Waiting for the change to be confirmed.'); s.busy = true; s.errors = {}; generations.change('read');
+  let succeeded = false;
+  const own = lifecycle, epoch = s.user?.sessionEpoch, csrf = s.csrf, originFocus = document.activeElement?.id;
+  const valid = () => own === lifecycle && (auth || s.user?.sessionEpoch === epoch);
+  draw();
+  try {
+    if (!csrf) await bootstrap(valid);
+    const result = await api.request(path, { method, body, csrf: s.csrf, epoch, valid });
+    if (!valid()) return;
+    await onSuccess(result); succeeded = true;
+  } catch (error) { if (valid()) await handleError(error, { auth }); }
+  finally {
+    if (valid()) {
+      s.busy = false;
+      if (auth) { delete s.draft.password; s.showPassword = false; }
+      draw();
+      const first = Object.keys(s.errors)[0];
+      if (first) focus(`field-${first}`);
+      else {
+        const origin = document.getElementById(originFocus), field = root.querySelector('#active-form input,#active-form textarea');
+        focus(origin && !origin.disabled ? originFocus : s.form === 'project' ? 'project-step-title' : field ? field.id : s.user ? fallbackFocus() : 'field-email');
+      }
+      if (succeeded && ['settings', 'workload', 'completed'].includes(s.page)) void refresh({ background: true });
+      startPoll();
+    }
+  }
+}
+const activity = new Activity({
+  allowed: () => !!s.user && !!s.csrf && isVisible() && !s.revalidating && !s.busy,
+  send: async () => {
+    const own = lifecycle, epoch = s.user.sessionEpoch;
+    const valid = () => own === lifecycle && s.user?.sessionEpoch === epoch;
+    try { await api.request('/api/v1/auth/sessions/current/activity', { method: 'POST', body: {}, csrf: s.csrf, epoch, valid, activity: true }); }
+    catch (error) { if (valid()) { await handleError(error, { activityReport: true }); throw error; } }
+  },
+});
+function navigate(page, projectId = s.projectId) {
+  if (s.busy || !guardNavigation()) return;
+  if (isActionConfirmation(s.notice) || s.notice === s.exportState.message) s.notice = '';
+  cancelExport();
+  cancelReads();
+  generations.change(page === s.page && projectId !== s.projectId ? 'project' : 'view');
+  if (projectId !== s.projectId) generations.change('project');
+  reading = null; s.loading = false; s.navOpen = false; s.page = page; s.form = null; s.draft = {}; s.settingsBase = null; s.settingsNeedsReview = false; s.errors = {}; s.invitation = null;
+  if (projectId !== s.projectId || page === 'projects') { s.resources.settings = new ReadState(); s.resources.contribution = new ReadState(); s.resources.workload = new ReadState(); s.board = null; s.selected = null; s.filters = defaultFilters(); s.events = []; s.eventCursor = null; }
+  s.projectId = page === 'projects' ? null : projectId; s.stale = true; draw(); focus('page-title'); void refresh(); startPoll();
+}
+function openForm(form, values = {}, guard = true) {
+  if (s.busy || (guard && !guardNavigation())) return;
+  returnFocus = document.activeElement?.id; s.editBase = form === 'edit' ? structuredClone(s.board.tasks.find(t => t.id === s.selected)) : null; s.editNeedsReview = false; s.form = form; s.selectedTemplate = null; s.settingsBase = null; s.draft = values; s.formInitial = JSON.stringify(values); s.errors = {}; s.invitation = null;
+  if (form === 'project') {
+    s.projectStep = 1;
+    s.projectListInspected = false;
+    s.templateNeedsReview = false;
+  }
+  draw(); root.querySelector('#active-form input,#active-form textarea')?.focus();
+}
+function closeForm() {
+  if (s.busy || !guardNavigation()) return;
+  if (s.form === 'project') {
+    s.resources.catalogue.invalidate();
+    if (s.templateNeedsReview || s.notice === 'Please correct the highlighted fields.') s.notice = '';
+  }
+  s.settingsBase = null; s.settingsNeedsReview = false; s.selectedTemplate = null;
+  s.form = s.user ? null : 'login'; s.draft = {}; s.errors = {}; s.editBase = null; s.editNeedsReview = false;
+  pendingReturnFocus = { id: returnFocus || 'page-title', lifecycle }; draw(); restoreFormFocus();
+}
+function restoreFormFocus() {
+  if (!pendingReturnFocus || s.loading || s.revalidating) return;
+  const pending = pendingReturnFocus; pendingReturnFocus = null;
+  if (pending.lifecycle !== lifecycle || s.form) return;
+  // A later user focus choice takes precedence over the queued return.
+  const active = document.activeElement;
+  if (active && active !== document.body && active !== document.documentElement && active !== root && active.id !== pending.id) return;
+  const target = document.getElementById(pending.id);
+  focus(target && !target.disabled ? pending.id : fallbackFocus());
+}
+function selectTask(id) {
+  if (s.busy || !guardNavigation()) return;
+  returnFocus = document.activeElement?.id; s.form = null; s.draft = {}; s.selected = id; s.boardFocus = id; draw(); focus('close-inspector');
+}
+root.addEventListener('input', event => {
+  const input = event.target;
+  if (input.id === 'search') { s.filters.search = input.value; draw(); return; }
+  if (input.closest('#active-form') && input.name && !['assigneeIds', 'project-template'].includes(input.name)) {
+    const example = /^example-(points|label)-(\d+)$/.exec(input.name);
+    if (example) s.draft.effortScaleExamples[Number(example[2])][example[1]] = input.value;
+    else s.draft[input.name] = input.type === 'checkbox' ? input.checked : input.value;
+    if (s.form === 'project' && input.name !== 'settingsReviewed') s.draft.settingsReviewed = false;
+  }
+});
+root.addEventListener('change', event => {
+  if (event.target.id === 'assignment' || event.target.id === 'status') { s.filters[event.target.id] = event.target.value; draw(); }
+  if (event.target.name === 'project-template' && event.target.checked) {
+    chooseTemplate(event.target.value);
+    focus(event.target.id);
+  }
+  if (event.target.id === 'field-settingsReviewed') {
+    s.draft.settingsReviewed = event.target.checked;
+    draw();
+  }
+  if (event.target.name === 'assigneeIds') s.draft.assigneeIds = [...root.querySelectorAll('[name="assigneeIds"]:checked')].map(input => input.value);
+});
+root.addEventListener('submit', async event => {
+  event.preventDefault(); if (event.target.id !== 'active-form') return;
+  const kind = s.form, draft = { ...s.draft };
+  if (kind === 'project') {
+    if (s.busy || s.unknown) return;
+    if (s.projectStep < 4) { advanceProject(); return; }
+  }
+  if (kind === 'task' || kind === 'edit') Object.assign(draft, { description: draft.description || '', category: draft.category || '', dueDate: draft.dueDate || null, assigneeIds: draft.assigneeIds || [] });
+  s.errors = validate(draft, kind === 'edit' ? 'task' : kind);
+  if (event.target.elements.dueDate?.validity.badInput) s.errors.dueDate = 'Enter a complete date or clear the field.';
+  if (['project', 'settings'].includes(kind)) Object.assign(s.errors, validateRules(draft).errors);
+  if (kind === 'project' && !projectTemplateCurrent(s)) { showProjectStep(2); return; }
+  if (kind === 'project' && !draft.settingsReviewed) s.errors.settingsReviewed = 'Review and agree to the project rules.';
+  if (kind === 'edit' && s.editBase.firstStartedAtUtc && agreementChanged(s.editBase, draft) && !draft.reason?.trim()) s.errors.reason = 'A real agreement change after first START requires a reason.';
+  if (Object.keys(s.errors).length) {
+    if (kind === 'project') {
+      s.notice = 'Please correct the highlighted fields.';
+      const step = s.errors.name || s.errors.description ? 1 : s.errors.settingsReviewed && Object.keys(s.errors).length === 1 ? 4 : 3;
+      showProjectStep(step, s.errors);
+    } else {
+      s.notice = 'Correct the marked fields.';
+      draw();
+      focus(`field-${Object.keys(s.errors)[0]}`);
+    }
+    return;
+  }
+  if (kind === 'register') await mutate('/api/v1/auth/accounts', draft, () => { s.form = 'login'; s.draft = { email: draft.email }; s.notice = 'Account created. Sign in explicitly; registration did not sign you in.'; }, { auth: true });
+  if (kind === 'login') await mutate('/api/v1/auth/sessions', { email: draft.email, password: draft.password }, async result => {
+    const epoch = result.sessionEpoch; s.draft = {}; s.user = result; s.form = null; generations.change('session');
+    await bootstrap(); broadcast('login', epoch); s.notice = 'Signed in.';
+    s.busy = false; void refresh(); // Sign-in is complete; a delayed read must not retain its mutation finalizer.
+  }, { auth: true });
+  if (kind === 'project') await mutate('/api/v1/projects', { name: draft.name, description: draft.description || '', template: { id: s.selectedTemplate.id, version: s.selectedTemplate.version }, settings: validateRules(draft).values }, result => { s.form = null; s.draft = {}; s.busy = false; navigate('tasks', result.id); s.notice = 'Project created. Starter assignments, if any, await your acceptance.'; });
+  if (kind === 'settings') {
+    if (!s.settingsBase || s.settingsNeedsReview || s.resources.settings.stale || s.resources.settings.data?.settingsVersion !== s.settingsBase.settingsVersion) { announce('Review the latest project rules before saving your retained draft.'); return; }
+    await mutate(`/api/v1/projects/${s.projectId}/settings`, rulesPatch(s.settingsBase, draft), result => {
+      const same = result.settingsVersion === s.settingsBase.settingsVersion;
+      s.resources.settings.data = result; s.resources.settings.stale = false; s.settingsBase = null; s.form = null; s.draft = {}; s.settingsNeedsReview = false;
+      s.notice = same ? 'No rule changes. Version and history are unchanged.' : 'Project rules saved. Refresh summaries for the new rules.';
+      s.board.snapshot = null; // Mutation response has no Board token; do not invent a token for locally patched data.
+    }, { method: 'PATCH' });
+  }
+  if (kind === 'join') await mutate('/api/v1/invitations/accept', draft, result => { s.form = null; s.draft = {}; s.busy = false; navigate('tasks', result.projectId); s.notice = 'Project joined.'; });
+  if (kind === 'task') await mutate(`/api/v1/projects/${s.projectId}/tasks`, draft, result => {
+    s.board.snapshot = null; s.board.tasks.push(result); s.board.totalTasks++; s.selected = result.id; s.form = null; s.draft = {}; s.notice = 'Task created. Current assignees must accept.';
+  });
+  if (kind === 'edit') {
+    const current = s.board?.tasks.find(t => t.id === s.editBase.id);
+    if (s.editNeedsReview || !current || current.version !== s.editBase.version || ['DONE', 'CANCELLED'].includes(current.status)) {
+      announce('Review the latest task state before saving your retained draft.'); return;
+    }
+    await mutate(`/api/v1/projects/${s.projectId}/tasks/${s.editBase.id}`, { ...draft, version: s.editBase.version }, result => {
+      const unchanged = result.version === s.editBase.version;
+      replaceTask(result); s.form = null; s.draft = {}; s.editBase = null;
+      s.notice = unchanged ? 'No changes. Agreement, acceptance and history are unchanged.' : 'Task edit confirmed. Read the current agreement and acceptance state.';
+    }, { method: 'PATCH' });
+  }
+  if (kind === 'reason') {
+    const task = s.reasonTask, action = s.reasonAction;
+    await mutate(`/api/v1/projects/${s.projectId}/tasks/${task.id}/transitions`, { action, version: task.version, reason: draft.reason }, result => { replaceTask(result); s.form = null; s.draft = {}; s.notice = 'Transition confirmed by the server.'; });
+  }
+});
+function replaceTask(result) { s.board.snapshot = null; s.board.tasks = s.board.tasks.map(t => t.id === result.id ? result : t); s.confirmedAt = new Date().toISOString(); }
+async function logout() {
+  if (s.busy || !guardNavigation()) return;
+  const epoch = s.user.sessionEpoch, csrf = s.csrf;
+  clearPrivate('Sign-out requested. Waiting for server revocation confirmation…'); broadcast('logout', epoch);
+  s.busy = true; const own = lifecycle; draw();
+  try {
+    await api.request('/api/v1/auth/sessions/current', { epoch, retry: false, valid: () => own === lifecycle });
+    await api.request('/api/v1/auth/sessions/current', { method: 'DELETE', csrf, epoch, valid: () => own === lifecycle });
+    if (own === lifecycle) { s.notice = 'Signed out. Server revocation confirmed.'; s.logoutUnconfirmed = false; }
+  } catch (error) {
+    if (own !== lifecycle) return;
+    s.logoutUnconfirmed = error.code !== 'UNAUTHENTICATED';
+    s.notice = s.logoutUnconfirmed ? 'Protected state cleared. Server logout is unconfirmed. Recheck deliberately; the browser owns the session cookie.' : 'Signed out. The server confirms no session remains.';
+  } finally { if (own === lifecycle) { s.busy = false; draw(); focus('field-email'); } }
+}
+async function inspectUnknownAuth() {
+  if (s.busy || s.user || !s.unknown) return;
+  const own = lifecycle, email = s.draft.email, uncertain = s.unknown;
+  const valid = () => own === lifecycle;
+  s.busy = true; s.notice = 'Inspecting the authoritative browser session; no account request is being replayed.'; draw();
+  try {
+    await api.request('/api/v1/auth/sessions/current', { valid });
+    if (valid()) await revalidate(false);
+  } catch (error) {
+    if (!valid()) return;
+    if (error.code === 'UNAUTHENTICATED') {
+      clearPrivate(uncertain === 'register' ? 'The server confirms no authenticated browser session. Registration may have completed. Sign in explicitly to inspect the account; do not blindly register again.' : 'The server confirms no authenticated browser session. Review and attempt sign-in deliberately.');
+      s.draft = { email }; s.logoutUnconfirmed = false; draw(); focus('field-email');
+    } else await handleError(error);
+  } finally { if (valid()) { s.busy = false; draw(); focus('field-email'); } }
+}
+root.addEventListener('click', async event => {
+  const b = event.target.closest('button'); if (!b || b.disabled) return; pendingReturnFocus = null;
+  if (b.dataset.project) { navigate('tasks', b.dataset.project); return; }
+  if (b.dataset.task) { selectTask(b.dataset.task); return; }
+  const id = b.id;
+  if (id.startsWith('theme-')) { s.theme = id.slice(6); draw(); }
+  else if (id === 'logout') await logout();
+  else if (id === 'export-report') await exportReport();
+  else if (id === 'cancel-report') { cancelExport('Report receipt cancelled. Server generation may continue until cleanup; already offered downloads cannot be revoked reliably.'); s.notice = s.exportState.message; draw(); focus('export-report'); startPoll(); }
+  else if (id === 'workspace-menu') { s.navOpen = !s.navOpen; draw(); }
+  else if (id === 'projects') navigate('projects');
+  else if (id.startsWith('nav-')) navigate(id.slice(4));
+  else if (id === 'refresh') { if (!s.user && s.unknown) await inspectUnknownAuth(); else if (!s.user || s.logoutUnconfirmed) await revalidate(true); else await refresh({ reviewReason: true }); }
+  else if (id === 'inspect-unknown') { if (s.user) await refresh({ inspect: true }); else await inspectUnknownAuth(); }
+  else if (id === 'more-projects') await refresh({ cursor: s.projectCursor });
+  else if (id === 'older-activity') await refresh({ cursor: s.eventCursor });
+  else if (id === 'show-password') { s.showPassword = !s.showPassword; draw(); }
+  else if (id === 'auth-switch') openForm(s.form === 'login' ? 'register' : 'login');
+  else if (id === 'new-project') { openForm('project', { name: '', description: '', settingsReviewed: false }); if (s.form === 'project') await loadCatalogue(); }
+  else if (id === 'join-project') openForm('join');
+  else if (id === 'new-task') openForm('task', { assigneeIds: [] });
+  else if (id === 'edit-task') { const t = s.board.tasks.find(t => t.id === s.selected); if (s.board.project.role === 'LEADER' && !['DONE', 'CANCELLED'].includes(t.status)) openForm('edit', editDraft(t)); }
+  else if (id === 'review-edit') await refresh({ reviewEdit: true });
+  else if (id === 'retry-catalogue') await loadCatalogue();
+  else if (id === 'review-template') chooseTemplate(s.selectedTemplate?.id || 'blank');
+  else if (id === 'project-back' && s.form === 'project' && s.projectStep > 1) {
+    if (s.notice === 'Please correct the highlighted fields.') s.notice = '';
+    showProjectStep(s.projectStep - 1);
+  }
+  else if (id === 'edit-rules') await openSettings();
+  else if (id === 'review-settings') await refresh({ reviewSettings: true });
+  else if (id.startsWith('retry-resource-')) {
+    const key = id.slice(15); if (['settings', 'contribution', 'workload'].includes(key)) await refresh();
+  } else if (id === 'add-example' || /^example-(remove|up|down)-/.test(id)) {
+    if (s.busy) return;
+    const rows = s.draft.effortScaleExamples;
+    if (s.form === 'project') s.draft.settingsReviewed = false;
+    if (id === 'add-example' && rows.length < 10) { rows.push({ points: '', label: '' }); draw(); focus(`field-example-points-${rows.length - 1}`); }
+    else { const [, operation, raw] = /^example-(remove|up|down)-(\d+)$/.exec(id) || []; const index = Number(raw);
+      if (operation === 'remove' && rows.length > 1) rows.splice(index, 1);
+      const target = operation === 'up' ? index - 1 : index + 1;
+      if (['up', 'down'].includes(operation) && target >= 0 && target < rows.length) [rows[index], rows[target]] = [rows[target], rows[index]];
+      draw(); focus(`field-example-points-${Math.min(index, rows.length - 1)}`);
+    }
+  }
+  else if (id === 'close-form') closeForm();
+  else if (id === 'close-inspector') { if (guardNavigation()) { const target = returnFocus || `task-${s.selected}`; s.selected = null; s.form = null; s.draft = {}; draw(); focus(document.getElementById(target) ? target : 'page-title'); } }
+  else if (id === 'view-table' || id === 'view-board') { s.mode = id.slice(5); draw(); }
+  else if (id === 'clear-filters') { s.filters = defaultFilters(); draw(); focus('search'); }
+  else if (id === 'pending') selectTask(pendingTasks(s.board.tasks, s.user.id)[0]?.id);
+  else if (id === 'previous-task' || id === 'next-task') {
+    const list = visibleTasks(s.board.tasks, s.filters, s.user.id), index = list.findIndex(t => t.id === s.selected);
+    if (guardNavigation() && list[index + (id === 'previous-task' ? -1 : 1)]) {
+      s.selected = list[index + (id === 'previous-task' ? -1 : 1)].id; draw();
+      focus(document.getElementById(id)?.disabled ? 'close-inspector' : id);
+    }
+  } else if (id === 'accept-task') {
+    const t = s.board.tasks.find(t => t.id === s.selected);
+    await mutate(`/api/v1/projects/${s.projectId}/tasks/${t.id}/acceptance`, { agreementVersion: t.agreementVersion }, result => { replaceTask(result); s.notice = 'Current agreement acceptance confirmed.'; });
+  } else if (id.startsWith('action-')) {
+    const action = id.slice(7), t = s.board.tasks.find(t => t.id === s.selected);
+    if (reasonActions.has(action)) { s.reasonTask = { ...t }; s.reasonAction = action; openForm('reason'); }
+    else await mutate(`/api/v1/projects/${s.projectId}/tasks/${t.id}/transitions`, { action, version: t.version }, result => { replaceTask(result); s.notice = 'Transition confirmed by the server.'; });
+  } else if (id === 'create-invite') await mutate(`/api/v1/projects/${s.projectId}/invitations`, undefined, result => { s.invitation = result; s.notice = 'Invitation created. Token is displayed once; use Copy explicitly.'; });
+  else if (id === 'copy-invite') {
+    try { await navigator.clipboard.writeText(s.invitation.token); announce('Token copied. Your clipboard may retain it after this view closes.'); }
+    catch { announce('Copy failed. Select and copy the visible token manually.'); }
+  } else if (id === 'clear-invite') {
+    s.invitation = null;
+    if (isActionConfirmation(s.notice)) s.notice = '';
+    draw(); focus('create-invite');
+  }
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    if (s.navOpen && event.target.closest?.('.sidebar') && document.getElementById('workspace-menu')?.getClientRects().length) {
+      s.navOpen = false; draw(); focus('workspace-menu');
+    } else if (s.form && !['login', 'register'].includes(s.form)) { event.preventDefault(); closeForm(); }
+    else if (s.selected) document.getElementById('close-inspector')?.click();
+  }
+});
+root.addEventListener('keydown', event => {
+  if (event.target.dataset.card && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault(); const tasks = visibleTasks(s.board.tasks, s.filters, s.user.id);
+    s.boardFocus = boardNeighbor(statuses.map(st => tasks.filter(t => t.status === st).map(t => t.id)), event.target.dataset.task, event.key);
+    draw(); focus(`task-${s.boardFocus}`);
+  }
+});
+for (const type of ['keydown', 'pointerdown', 'wheel', 'touchstart']) document.addEventListener(type, event => activity.input(event, isVisible()), { passive: true, capture: true });
+window.addEventListener('beforeunload', event => { if (dirty()) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('pagehide', () => { cancelExport(); cancelReads(); stopPoll(); activity.pause(); generations.change('session'); root.replaceChildren(); });
+window.addEventListener('pageshow', () => { void revalidate(true); });
+document.addEventListener('visibilitychange', () => { if (!isVisible()) { cancelExport(); cancelReads(); stopPoll(); activity.pause(); } else void revalidate(true); });
+window.addEventListener('focus', event => { if (event.target === window && event.isTrusted && s.user && isVisible() && !s.busy) void revalidate(true); });
+window.addEventListener('offline', () => { cancelExport(); cancelReads(); s.stale = true; announce(s.readFailureNotice = 'Offline. Last confirmed data is stale; writes are disabled. No writes are queued.'); });
+window.addEventListener('online', () => { if (s.user) announce(s.readFailureNotice = 'Connection may be restored. Refresh to confirm state before writing.'); });
+draw();
