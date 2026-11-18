@@ -98,19 +98,25 @@ node --test web-client/tests/unit
 ./mvnw -f server-api/pom.xml verify
 ```
 
-## Project structure (planned)
+## Project structure
 
 ```text
 owlibi/
   README.md
-  pom.xml
-  .env.example
-  docs/                 requirements, decisions, API contract, data model
-  src/main/java/        controller -> service -> repository (feature packages)
-  src/main/resources/
-    db/migration/       schema migrations
-    static/             HTML, CSS, JavaScript
-  src/test/java/        unit and integration tests
+  pom.xml, mvnw, mvnw.cmd   Maven parent build and wrapper (no global Maven needed)
+  compose.yaml              local PostgreSQL (and API) containers
+  render.yaml               Render Blueprint for the hosted service
+  server-api/               Spring Boot REST API
+    src/main/java/          controller -> service -> SQL (feature packages)
+    src/main/resources/     config, db/migration (Flyway), templates catalogue
+    src/test/java/          unit and integration tests
+  web-client/               browser app (plain HTML, CSS, JavaScript)
+    src/                    source files built into the Spring static resources
+    scripts/                build.mjs and check.mjs
+    tests/unit/             Node unit tests
+  hosting/                  Render Dockerfile, start script, Supabase bootstrap SQL
+  scripts/db/               local database role bootstrap
+  docs/                     architecture, stack, deployment, AI usage, mockup, screenshots
 ```
 
 Design rules:
@@ -131,19 +137,19 @@ Design rules:
 
 ## Roadmap
 
-- [ ] Project setup, build, database connection
-- [ ] Accounts and sign-in
-- [ ] Projects and membership
-- [ ] Tasks, assignment, and acceptance
-- [ ] Review and Done flow
-- [ ] Templates and settings
-- [ ] Contribution summary and workload warnings
-- [ ] `.xlsx` professor report export
+- [x] Project setup, build, database connection
+- [x] Accounts and sign-in
+- [x] Projects and membership
+- [x] Tasks, assignment, and acceptance
+- [x] Review and Done flow
+- [x] Templates and settings
+- [x] Contribution summary and workload warnings
+- [x] `.xlsx` professor report export
 - [ ] Testing, accessibility pass, and release
 
 ## Academic integrity
 
-AI tools and third-party libraries may be used as the instructor's policy allows. Every team member must be able to explain the code they submit. Disclose AI and library use in `docs/AI_USAGE.md`.
+The code in this repository was copied, in small commits, from a reference application built with Claude Code (an AI assistant). It was not written from scratch by the team. [docs/AI_USAGE.md](docs/AI_USAGE.md) says what was copied, who did what, and which libraries are used. Every team member must be able to explain the code they submit.
 
 ## Course details
 
