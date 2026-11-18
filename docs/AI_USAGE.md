@@ -19,6 +19,7 @@ This file says what was written by AI, what was copied, and who did what. It is 
 | Database migrations V1 to V4, configuration, template catalogue | `server-api/src/main/resources/` |
 | Integration and unit tests | `server-api/src/test/java/` |
 | Browser app (HTML, CSS, JavaScript) and its unit tests | `web-client/` |
+| Third-party license files and the interactive `/mockup/` pages (AI-generated in the reference) | `server-api/src/main/resources/licenses/`, `server-api/src/main/resources/mockup/` |
 | Maven wrapper and POMs, `compose.yaml`, Render and Supabase files | repository root, `hosting/`, `scripts/db/` |
 
 `web-client/src/brand-logo.png` is an AI-generated owl-with-magnifier image chosen for the reference.
@@ -33,7 +34,7 @@ Names are the Git authors of the commits (`git log --format='%an' --no-merges`).
 | John Allen Alvarez | Database migrations, template catalogue, security filters, task and summary code, Excel report code, test support and persistence tests, `SummaryIT`, `TaskBoundaryIT`, `TaskEditingIT`, `ProfessorReportIT`, and the first versions of the architecture, stack and deployment docs. |
 | Julia Fernando | The browser app: build scripts, API client, session, model, styles, UI rendering, main script and the web unit tests. |
 
-Two tests that were still owed were added by **Jeush** on the `jeushdev/finish` branch, with AI assistance, copied from the reference: `ProjectSetupIT` (two commits) and `StaticAssetsIT` (Julia's area). Jeush did this on Julia's behalf; the commits carry Jeush's name. Not yet in the repository: `ReportResourceIT`, `RoutingBoundaryIT`, the mockup screens in `docs/mockup/` and the live screenshots in `docs/screenshots/`. TODO(Jeush): update this paragraph when those land, and confirm that Julia agrees with how it is described.
+Pieces that were still owed were added by **Jeush** on the `jeushdev/finish` branch, with AI assistance, copied from the reference: `ProjectSetupIT` (two commits), `ReportResourceIT` and, in Julia's area, `StaticAssetsIT` and `RoutingBoundaryIT`. `ReportResourceIT` needs the license files, and `RoutingBoundaryIT` needs the mockup pages, so those were copied too. Jeush did this on Julia's behalf; the commits carry Jeush's name. Not yet in the repository: Julia's own mockup screens in `docs/mockup/` and the live screenshots in `docs/screenshots/`. TODO(Jeush): update this paragraph when those land, and confirm that Julia agrees with how it is described.
 
 ### Tests written by John
 
