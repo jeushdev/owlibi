@@ -1,0 +1,37 @@
+Owlibi local AI reference R4 library attribution
+
+Apache POI poi/poi-ooxml/poi-ooxml-lite 5.5.1, XMLBeans 5.3.0,
+Commons Collections4 4.5.0, Commons Math3 3.6.1, Commons IO 2.21.0,
+and Commons Compress 1.28.0: Apache License 2.0. Original LICENSE and
+NOTICE resources remain in the distributed dependency JARs. POI LICENSE
+and NOTICE are additionally reproduced here, unchanged.
+
+SparseBitSet 1.3 (Zaxxer.com; Brett Wooldridge): Apache License 2.0,
+as declared by its exact Maven POM, reproduced here because this JAR
+contains no embedded license/notice file. Apache license text is supplied
+in POI-LICENSE.txt. Publisher: https://github.com/brettwooldridge/SparseBitSet
+
+curvesapi 1.08: original Graph Builder code copyright (c) 2005 Graph
+Builder, BSD 3-Clause. Publisher license is reproduced unchanged in
+curvesapi-LICENSE.txt; its exact Maven POM is included because this JAR
+contains no embedded license/notice file. Publisher README identifies
+com.graphbuilder.org.apache.harmony.awt.gl.Crossing as Apache Harmony,
+licensed by the Apache Software Foundation under Apache License 2.0;
+that license text is supplied in POI-LICENSE.txt.
+Publisher: https://github.com/virtuald/curvesapi
+
+No endorsement by these publishers is implied. The R4 dependency and
+license inventory records exact resolved artifact/POM identities; other
+existing libraries retain their original embedded notices.
+
+Additional retained-baseline JARs without embedded license files have their exact
+Maven POMs here. Logback classic/core 1.5.38 inherits dual EPL-2.0/LGPL-2.1-only
+from logback-parent; the publisher notice and EPL-2.0 text are included.
+Unmodified corresponding source is available from Maven Central at
+https://repo.maven.apache.org/maven2/ch/qos/logback/logback-core/1.5.38/logback-core-1.5.38-sources.jar
+https://repo.maven.apache.org/maven2/ch/qos/logback/logback-classic/1.5.38/logback-classic-1.5.38-sources.jar
+SnakeYAML 2.6, HikariCP 7.0.2 and JSpecify 1.0.1 declare Apache-2.0.
+Flyway PostgreSQL 12.4.0 inherits Apache-2.0 from flyway-parent, also included.
+SparseBitSet publisher source credits Paladin Software International,
+Incorporated, based on prior work for/by Sun Microsystems, Inc.; that
+attribution is retained here alongside its Apache-2.0 POM declaration.
