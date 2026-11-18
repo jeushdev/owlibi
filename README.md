@@ -98,6 +98,10 @@ node --test web-client/tests/unit
 ./mvnw -f server-api/pom.xml verify
 ```
 
+## Deploying
+
+The hosted setup is one Render Free Docker service (website and API together) plus a Supabase Free PostgreSQL database. Follow [docs/DEPLOY_RENDER_SUPABASE.md](docs/DEPLOY_RENDER_SUPABASE.md); `render.yaml` and the files in `hosting/` are what it uses. The live URL will be added here once the service is running.
+
 ## Project structure
 
 ```text
@@ -116,7 +120,7 @@ owlibi/
     tests/unit/             Node unit tests
   hosting/                  Render Dockerfile, start script, Supabase bootstrap SQL
   scripts/db/               local database role bootstrap
-  docs/                     architecture, stack, deployment, AI usage, mockup, screenshots
+  docs/                     architecture, stack, deployment guide, AI usage
 ```
 
 Design rules:
