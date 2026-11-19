@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { assets } from './build.mjs';
 assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'Use Node.js 24 or newer');
 for (const directory of ['src', 'scripts', 'tests/unit', 'tests/browser']) {
+  if (!existsSync(directory)) continue; // tests/browser is not part of this repository
   for (const file of await readdir(directory)) {
     if (!/\.(mjs|js)$/.test(file)) continue;
     const result = spawnSync(process.execPath, ['--check', `${directory}/${file}`], { stdio: 'inherit' });

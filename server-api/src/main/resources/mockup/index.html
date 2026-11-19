@@ -1,0 +1,1296 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Owlibi · macOS Desktop Workspace</title>
+  
+  <link rel="stylesheet" href="/mockup/mockup.css">
+</head>
+<body>
+
+  <!-- External Demo Header Bar -->
+  <header class="demo-bar">
+    <div class="demo-badge">
+      <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+      Owlibi design prototype · fictional data
+    </div>
+    <div class="demo-actions">
+      <a href="/" class="demo-theme-btn" style="text-decoration: none;" title="Return to Owlibi Reference Application">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        <span>Reference App</span>
+      </a>
+      <button class="demo-theme-btn" id="export-report-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        <span>Export Professor Report</span>
+      </button>
+      <button class="demo-theme-btn" id="theme-toggle" aria-label="Toggle Theme">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+        <span id="theme-label">Switch to Dark Mode</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       MACOS APPLICATION WINDOW
+       ========================================================================== -->
+  <main class="mac-window" role="region" aria-label="Owlibi Project Workspace">
+
+    <!-- Unified Toolbar & Traffic Lights -->
+    <div class="mac-toolbar">
+      <div class="toolbar-lead">
+        <div class="traffic-lights" aria-label="Window Controls">
+          <div class="traffic-dot dot-close" id="dot-close" title="Close Workspace"></div>
+          <div class="traffic-dot dot-min" id="dot-min" title="Minimize to Dock"></div>
+          <div class="traffic-dot dot-zoom" id="dot-zoom" title="Toggle Maximize"></div>
+        </div>
+        <div class="window-title-block">
+          <span id="nav-project-crumb">Campus exhibit</span>
+          <span class="subtitle" id="nav-view-crumb">· Tasks Table</span>
+        </div>
+      </div>
+
+      <div class="toolbar-center">
+        <div class="segmented-control" role="group" aria-label="View Switcher">
+          <button class="segmented-btn active" data-target-view="view-table" id="tb-table-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h18v18H3V3zm2 4v4h6V7H5zm8 0v4h6V7h-6zm-8 6v6h6v-6H5zm8 0v6h6v-6h-6z"/></svg>
+            Table
+          </button>
+          <button class="segmented-btn" data-target-view="view-board" id="tb-board-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h4v16H4V4zm6 0h4v10h-4V4zm6 0h4v13h-4V4z"/></svg>
+            Board
+          </button>
+          <button class="segmented-btn" data-target-view="view-share" id="tb-share-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11 2v20c-5.07-.5-9-4.79-9-10s3.93-9.5 9-10zm2 0v9h9c-.48-4.73-4.27-8.52-9-9zm0 11v9c4.73-.48 8.52-4.27 9-9h-9z"/></svg>
+            Points Share
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-trailing">
+        <div class="search-field">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="search" id="task-search-input" placeholder="Search tasks (⌘F)" aria-label="Search tasks">
+        </div>
+        <button class="mac-btn mac-btn-secondary" id="tb-export-report-btn" title="Export Professor Report (.xlsx)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          Export Report
+        </button>
+        <button class="mac-btn mac-btn-secondary" id="open-settings-btn" title="Project Settings & Templates">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          Settings
+        </button>
+        <button class="mac-btn mac-btn-primary" id="open-new-task-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          New Task
+        </button>
+        <button class="mac-btn mac-icon-btn" id="toggle-inspector" title="Toggle Inspector">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 16H5V5h9v14zm5 0h-3V5h3v14z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Workspace Container -->
+    <div class="mac-workspace">
+
+      <!-- ======================================================================
+           COLUMN 1: MACOS SOURCE LIST (SIDEBAR)
+           ====================================================================== -->
+      <aside class="mac-sidebar" aria-label="Sidebar navigation">
+        <div class="sidebar-top">
+          <!-- Brand Header -->
+          <div class="brand-header">
+            <div class="brand-logo" aria-hidden="true">🦉</div>
+            <div class="brand-text">
+              <span class="brand-title">Owlibi</span>
+              <span class="brand-badge">Academic Collab</span>
+            </div>
+          </div>
+
+          <!-- Project Selector -->
+          <div class="project-card" id="project-switch-trigger" role="button" tabindex="0" title="Switch Project">
+            <div class="project-card-info">
+              <span class="project-card-name">Campus exhibit</span>
+              <span class="project-card-meta">Alex (Leader) · 4 Members</span>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: var(--label-tertiary);"><path d="M7 10l5 5 5-5z"/></svg>
+          </div>
+
+          <!-- Navigation Sections -->
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Views</div>
+            <ul class="sidebar-nav-list">
+              <li>
+                <a class="sidebar-item active" data-nav-target="view-table" id="nav-all-tasks">
+                  <span class="sidebar-item-lead">
+                    <span class="sidebar-icon">
+                      <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+                    </span>
+                    <span>All Tasks</span>
+                  </span>
+                  <span class="sidebar-badge">8</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-nav-target="view-board" id="nav-board">
+                  <span class="sidebar-item-lead">
+                    <span class="sidebar-icon">
+                      <svg viewBox="0 0 24 24"><path d="M4 4h4v16H4V4zm6 0h4v10h-4V4zm6 0h4v13h-4V4z"/></svg>
+                    </span>
+                    <span>Board View</span>
+                  </span>
+                  <span class="sidebar-badge">Kanban</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-nav-target="view-review" id="nav-review">
+                  <span class="sidebar-item-lead">
+                    <span class="sidebar-icon">
+                      <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    </span>
+                    <span>Review Queue</span>
+                  </span>
+                  <span class="sidebar-badge alert" id="sidebar-review-badge">1</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-nav-target="view-share" id="nav-share">
+                  <span class="sidebar-item-lead">
+                    <span class="sidebar-icon">
+                      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    </span>
+                    <span>Points & Workload</span>
+                  </span>
+                  <span class="sidebar-badge">8 pts</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-nav-target="view-activity" id="nav-activity">
+                  <span class="sidebar-item-lead">
+                    <span class="sidebar-icon">
+                      <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                    </span>
+                    <span>Action Log (What Happened)</span>
+                  </span>
+                  <span class="sidebar-badge">7 events</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-nav-target="view-report" id="nav-report">
+                  <span class="sidebar-item-lead">
+                    <span class="sidebar-icon">
+                      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </span>
+                    <span>Professor Report (.xlsx)</span>
+                  </span>
+                  <span class="sidebar-badge" style="background: var(--apple-blue-subtle); color: var(--apple-blue); font-weight: 600;">4 sheets</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="sidebar-section">
+            <div class="sidebar-heading">Task Status</div>
+            <ul class="sidebar-nav-list">
+              <li>
+                <a class="sidebar-item" data-status-filter="To Do" title="Filter by To Do">
+                  <span class="sidebar-item-lead">
+                    <span class="status-dot" style="background: var(--label-tertiary);"></span>
+                    <span>To Do</span>
+                  </span>
+                  <span class="sidebar-badge" id="badge-todo">2</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-status-filter="In Progress" title="Filter by In Progress">
+                  <span class="sidebar-item-lead">
+                    <span class="status-dot" style="background: var(--apple-blue);"></span>
+                    <span>In Progress</span>
+                  </span>
+                  <span class="sidebar-badge" id="badge-progress">2</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-status-filter="Review" title="Filter by Review">
+                  <span class="sidebar-item-lead">
+                    <span class="status-dot" style="background: var(--apple-orange);"></span>
+                    <span>Review</span>
+                  </span>
+                  <span class="sidebar-badge alert" id="badge-review">1</span>
+                </a>
+              </li>
+              <li>
+                <a class="sidebar-item" data-status-filter="Done" title="Filter by Done">
+                  <span class="sidebar-item-lead">
+                    <span class="status-dot" style="background: var(--apple-green);"></span>
+                    <span>Done</span>
+                  </span>
+                  <span class="sidebar-badge" id="badge-done">2</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Sidebar Footer / Current Profile -->
+        <div class="sidebar-footer">
+          <div class="user-profile-card" id="user-profile-btn" title="Current Active Student">
+            <div class="user-meta-group">
+              <div class="user-avatar" aria-hidden="true">A</div>
+              <div class="user-details">
+                <span class="user-name">Alex</span>
+                <span class="user-role">Leader · Campus exhibit</span>
+              </div>
+            </div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: var(--label-tertiary);"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ======================================================================
+           COLUMN 2: DYNAMICALLY SWITCHED PAGE VIEWS
+           ====================================================================== -->
+      <section class="mac-content" aria-label="Main project workspace view">
+
+        <!-- ==================================================================
+             PAGE 1: TASKS TABLE VIEW (DEFAULT)
+             ================================================================== -->
+        <div class="view-page active" id="view-table">
+
+          <!-- Agreement Pending Notification Banner -->
+          <div class="apple-banner" role="alert">
+            <div class="apple-banner-icon">
+              <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+            </div>
+            <div class="apple-banner-body">
+              <div class="apple-banner-title">
+                <span>Task Agreement Pending</span>
+                <span class="apple-banner-pill">Version 2</span>
+              </div>
+              <p class="apple-banner-text">
+                Alex updated <strong>"Build the exhibit stand"</strong> (points increased 5 → 8 pts). Bea accepted; awaiting Mika's acceptance before progression resumes.
+              </p>
+              <div class="apple-banner-actions">
+                <button class="mac-btn mac-btn-primary" id="open-agreement-diff-btn" style="height: 24px; font-size: 11px;">
+                  Review Agreement
+                </button>
+                <button class="mac-btn mac-btn-secondary" id="banner-view-log-btn" style="height: 24px; font-size: 11px;">
+                  View Change Log
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Header & Quick Filters -->
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 class="view-title">Project Tasks</h1>
+              <span class="view-count" id="table-count-label">8 tasks · 36 total effort points</span>
+            </div>
+            <div class="view-filter-bar" role="toolbar" aria-label="Task Filters">
+              <button class="filter-chip active" data-filter="all">All</button>
+              <button class="filter-chip" data-filter="active">Active (5)</button>
+              <button class="filter-chip" data-filter="needs-acceptance">Needs Acceptance (1)</button>
+              <button class="filter-chip" data-filter="done">Done (2)</button>
+            </div>
+          </div>
+
+          <!-- High-Density Table -->
+          <div class="task-table-wrapper">
+            <table class="task-table">
+              <thead>
+                <tr>
+                  <th style="width: 32px;"></th>
+                  <th>Task Title</th>
+                  <th style="width: 105px;">Category</th>
+                  <th style="width: 110px;">Status</th>
+                  <th style="width: 85px;">Assignees</th>
+                  <th style="width: 75px;">Effort</th>
+                  <th style="width: 95px;">Due Date</th>
+                  <th style="width: 130px;">Agreement</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Task 1 (v2 Pending) -->
+                <tr class="selected" data-task-id="1">
+                  <td>
+                    <div class="task-checkbox"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+                  </td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Build the exhibit stand</span></div></td>
+                  <td><span class="category-tag">Build</span></td>
+                  <td><span class="status-pill status-todo"><span class="status-dot"></span> To Do</span></td>
+                  <td>
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-mika" title="Mika">M</span>
+                      <span class="avatar-bubble avatar-bea" title="Bea">B</span>
+                    </div>
+                  </td>
+                  <td><span class="points-badge highlight">8 pts</span></td>
+                  <td>Oct 9, 2026</td>
+                  <td>
+                    <span class="agreement-state pending">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/></svg>
+                      v2 · 1/2 Signed
+                    </span>
+                  </td>
+                </tr>
+
+                <!-- Task 2 -->
+                <tr data-task-id="2">
+                  <td><div class="task-checkbox"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Draft exhibit labels</span></div></td>
+                  <td><span class="category-tag">Writing</span></td>
+                  <td><span class="status-pill status-todo"><span class="status-dot"></span> To Do</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-nico" title="Nico">N</span></div></td>
+                  <td><span class="points-badge">3 pts</span></td>
+                  <td>Oct 10, 2026</td>
+                  <td><span class="agreement-state active">v1 · Active</span></td>
+                </tr>
+
+                <!-- Task 3 -->
+                <tr data-task-id="3">
+                  <td><div class="task-checkbox"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Prepare the slide deck</span></div></td>
+                  <td><span class="category-tag">Presentation</span></td>
+                  <td><span class="status-pill status-progress"><span class="status-dot"></span> In Progress</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-alex" title="Alex">A</span><span class="avatar-bubble avatar-nico" title="Nico">N</span></div></td>
+                  <td><span class="points-badge">6 pts</span></td>
+                  <td>Oct 8, 2026</td>
+                  <td><span class="agreement-state active">v1 · Active</span></td>
+                </tr>
+
+                <!-- Task 4 -->
+                <tr data-task-id="4">
+                  <td><div class="task-checkbox"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Test the prototype</span></div></td>
+                  <td><span class="category-tag">Testing</span></td>
+                  <td><span class="status-pill status-review"><span class="status-dot"></span> Review</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-mika" title="Mika">M</span></div></td>
+                  <td><span class="points-badge">5 pts</span></td>
+                  <td>Oct 7, 2026</td>
+                  <td><span class="agreement-state active">v1 · Active</span></td>
+                </tr>
+
+                <!-- Task 7 -->
+                <tr data-task-id="7">
+                  <td><div class="task-checkbox"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Prepare the demo walkthrough</span></div></td>
+                  <td><span class="category-tag">Presentation</span></td>
+                  <td><span class="status-pill status-progress"><span class="status-dot"></span> In Progress</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-mika" title="Mika">M</span></div></td>
+                  <td><span class="points-badge">4 pts</span></td>
+                  <td>Oct 11, 2026</td>
+                  <td><span class="agreement-state active">v1 · Active</span></td>
+                </tr>
+
+                <!-- Task 5 (Done) -->
+                <tr class="done" data-task-id="5">
+                  <td><div class="task-checkbox checked"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Research the topic</span></div></td>
+                  <td><span class="category-tag">Research</span></td>
+                  <td><span class="status-pill status-done"><span class="status-dot"></span> Done</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-alex" title="Alex">A</span><span class="avatar-bubble avatar-bea" title="Bea">B</span></div></td>
+                  <td><span class="points-badge">4 pts</span></td>
+                  <td>—</td>
+                  <td><span class="agreement-state active">v1 · Complete</span></td>
+                </tr>
+
+                <!-- Task 6 (Done) -->
+                <tr class="done" data-task-id="6">
+                  <td><div class="task-checkbox checked"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Sketch the exhibit layout</span></div></td>
+                  <td><span class="category-tag">Planning</span></td>
+                  <td><span class="status-pill status-done"><span class="status-dot"></span> Done</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-nico" title="Nico">N</span></div></td>
+                  <td><span class="points-badge">4 pts</span></td>
+                  <td>—</td>
+                  <td><span class="agreement-state active">v1 · Complete</span></td>
+                </tr>
+
+                <!-- Task 8 (Cancelled) -->
+                <tr class="cancelled" data-task-id="8">
+                  <td><div class="task-checkbox" style="opacity: 0.3;"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></div></td>
+                  <td><div class="task-title-cell"><span class="task-title-text">Print an extra poster</span></div></td>
+                  <td><span class="category-tag">Printing</span></td>
+                  <td><span class="status-pill status-cancelled"><span class="status-dot"></span> Cancelled</span></td>
+                  <td><div class="avatar-stack"><span class="avatar-bubble avatar-bea" title="Bea">B</span></div></td>
+                  <td><span class="points-badge">2 pts</span></td>
+                  <td>Oct 8, 2026</td>
+                  <td><span class="agreement-state cancelled">Archived</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Bottom Completed Points Summary Card -->
+          <div class="effort-share-card">
+            <div class="effort-share-header">
+              <div class="effort-share-title-block">
+                <h2 class="effort-share-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color: var(--apple-blue);"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                  Completed Effort-Points Share
+                </h2>
+                <p class="effort-share-subtitle">
+                  Authoritative proportional distribution of completed points from signed tasks marked Done.
+                </p>
+              </div>
+              <div class="effort-share-total">
+                <div class="total-points-big">8.0 pts</div>
+                <div class="total-points-label">Completed Work</div>
+              </div>
+            </div>
+            <div class="proportional-bar">
+              <div class="bar-segment bar-nico" style="width: 50%;"></div>
+              <div class="bar-segment bar-alex" style="width: 25%;"></div>
+              <div class="bar-segment bar-bea" style="width: 25%;"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ==================================================================
+             PAGE 2: KANBAN BOARD VIEW
+             ================================================================== -->
+        <div class="view-page" id="view-board">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 class="view-title">Task Board</h1>
+              <span class="view-count">Organized by task workflow state</span>
+            </div>
+            <div class="view-filter-bar" role="toolbar" aria-label="Board Filters">
+              <button class="filter-chip active" data-kanban-filter="all">All Columns</button>
+              <button class="filter-chip" data-kanban-filter="my">My Assignments (Alex)</button>
+            </div>
+          </div>
+
+          <div class="kanban-grid">
+            <!-- Column 1: To Do -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <span class="kanban-column-title">
+                  <span class="status-dot" style="background: var(--label-tertiary);"></span>
+                  To Do
+                </span>
+                <span class="kanban-column-count">2</span>
+              </div>
+              <div class="kanban-card-list">
+                <div class="kanban-card selected" data-task-id="1">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Build</span>
+                    <span class="points-badge highlight">8 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title">Build the exhibit stand</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-mika">M</span>
+                      <span class="avatar-bubble avatar-bea">B</span>
+                    </div>
+                    <span class="kanban-due-date">Due Oct 9</span>
+                  </div>
+                </div>
+
+                <div class="kanban-card" data-task-id="2">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Writing</span>
+                    <span class="points-badge">3 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title">Draft exhibit labels</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-nico">N</span>
+                    </div>
+                    <span class="kanban-due-date">Due Oct 10</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 2: In Progress -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <span class="kanban-column-title">
+                  <span class="status-dot" style="background: var(--apple-blue);"></span>
+                  In Progress
+                </span>
+                <span class="kanban-column-count">2</span>
+              </div>
+              <div class="kanban-card-list">
+                <div class="kanban-card" data-task-id="3">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Presentation</span>
+                    <span class="points-badge">6 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title">Prepare the slide deck</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-alex">A</span>
+                      <span class="avatar-bubble avatar-nico">N</span>
+                    </div>
+                    <span class="kanban-due-date">Due Oct 8</span>
+                  </div>
+                </div>
+
+                <div class="kanban-card" data-task-id="7">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Presentation</span>
+                    <span class="points-badge">4 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title">Prepare the demo walkthrough</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-mika">M</span>
+                    </div>
+                    <span class="kanban-due-date">Due Oct 11</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 3: Review -->
+            <div class="kanban-column" style="border-color: rgba(255, 149, 0, 0.4); background: rgba(255, 149, 0, 0.02);">
+              <div class="kanban-column-header">
+                <span class="kanban-column-title">
+                  <span class="status-dot" style="background: var(--apple-orange);"></span>
+                  Review (Needs Leader)
+                </span>
+                <span class="kanban-column-count" style="background: var(--apple-orange-subtle); color: var(--apple-orange);">1</span>
+              </div>
+              <div class="kanban-card-list">
+                <div class="kanban-card" data-task-id="4" style="border-left: 3px solid var(--apple-orange);">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Testing</span>
+                    <span class="points-badge">5 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title">Test the prototype</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-mika">M</span>
+                    </div>
+                    <span class="kanban-due-date" style="color: var(--apple-orange); font-weight: 550;">Review pending</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 4: Done -->
+            <div class="kanban-column">
+              <div class="kanban-column-header">
+                <span class="kanban-column-title">
+                  <span class="status-dot" style="background: var(--apple-green);"></span>
+                  Done
+                </span>
+                <span class="kanban-column-count">2</span>
+              </div>
+              <div class="kanban-card-list">
+                <div class="kanban-card" data-task-id="5">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Research</span>
+                    <span class="points-badge">4 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title" style="text-decoration: line-through; color: var(--label-tertiary);">Research the topic</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-alex">A</span>
+                      <span class="avatar-bubble avatar-bea">B</span>
+                    </div>
+                    <span class="kanban-due-date" style="color: var(--apple-green); font-weight: 550;">Approved</span>
+                  </div>
+                </div>
+
+                <div class="kanban-card" data-task-id="6">
+                  <div class="kanban-card-top">
+                    <span class="category-tag">Planning</span>
+                    <span class="points-badge">4 pts</span>
+                  </div>
+                  <h3 class="kanban-card-title" style="text-decoration: line-through; color: var(--label-tertiary);">Sketch the exhibit layout</h3>
+                  <div class="kanban-card-meta">
+                    <div class="avatar-stack">
+                      <span class="avatar-bubble avatar-nico">N</span>
+                    </div>
+                    <span class="kanban-due-date" style="color: var(--apple-green); font-weight: 550;">Approved</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================================================================
+             PAGE 3: LEADER REVIEW QUEUE VIEW
+             ================================================================== -->
+        <div class="view-page" id="view-review">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 class="view-title">Leader Review Queue</h1>
+              <span class="view-count">1 item pending verification</span>
+            </div>
+          </div>
+
+          <div class="review-queue-card">
+            <div class="review-item">
+              <div class="review-item-lead">
+                <div>
+                  <span class="task-hero-id">TASK-04 · TESTING</span>
+                  <h2 class="review-task-title">Test the prototype</h2>
+                  <div style="font-size: 11.5px; color: var(--label-tertiary); margin-top: 2px;">
+                    Assigned to Mika · 5 Effort Points · Submitted today at 9:15 AM
+                  </div>
+                </div>
+                <span class="status-pill status-review"><span class="status-dot"></span> In Review</span>
+              </div>
+
+              <div class="review-submission-quote">
+                <strong>Mika's Submission Note:</strong>
+                <p>"Completed full stress test across 3 mobile viewports and documented 2 minor edge cases. Test documentation is linked and ready for leader sign-off."</p>
+              </div>
+
+              <div class="review-actions-bar">
+                <button class="mac-btn mac-btn-primary" id="rq-approve-btn" style="background: var(--apple-green); border-color: var(--apple-green);">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                  Approve as Done (Credit 5 pts)
+                </button>
+                <button class="mac-btn mac-btn-secondary" id="rq-return-btn" style="color: var(--apple-red);">
+                  Return with Reason...
+                </button>
+                <button class="mac-btn mac-btn-secondary" id="rq-inspect-btn">
+                  Inspect Task Detail →
+                </button>
+              </div>
+            </div>
+
+            <div style="font-size: 11px; color: var(--label-tertiary); line-height: 1.4; border-top: 1px solid var(--toolbar-border); padding-top: 8px;">
+              <strong>Leader Role Authority:</strong> Approving work marks the task Done and credits points to the authoritative completed points share. Returning work requires a recorded reason and pauses completion until changes are made.
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================================================================
+             PAGE 4: WORKLOAD & POINTS SHARE VIEW (DETAILED ANALYTICS)
+             ================================================================== -->
+        <div class="view-page" id="view-share">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 class="view-title">Completed Effort-Points & Workload</h1>
+              <span class="view-count">8.0 Completed Points · 28 Active Points</span>
+            </div>
+            <button class="mac-btn mac-btn-primary" id="analytics-export-btn">
+              Export Official Professor Report (.xlsx)
+            </button>
+          </div>
+
+          <!-- Authoritative Completed Points Share -->
+          <div class="effort-share-card">
+            <div class="effort-share-header">
+              <div class="effort-share-title-block">
+                <h2 class="effort-share-title">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color: var(--apple-blue);"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                  Completed Effort-Points Share (Authoritative)
+                </h2>
+                <p class="effort-share-subtitle">
+                  Formula: <code>Member Points Share = (Agreed Points of Done Tasks ÷ Assignees) ÷ Total Completed Points</code>
+                </p>
+              </div>
+              <div class="effort-share-total">
+                <div class="total-points-big">8.0 pts</div>
+                <div class="total-points-label">Total Finished</div>
+              </div>
+            </div>
+
+            <!-- Proportional Breakdown Bar -->
+            <div class="proportional-bar">
+              <div class="bar-segment bar-nico" style="width: 50%;"></div>
+              <div class="bar-segment bar-alex" style="width: 25%;"></div>
+              <div class="bar-segment bar-bea" style="width: 25%;"></div>
+            </div>
+
+            <!-- 4 Member Cards -->
+            <div class="member-share-grid">
+              <div class="member-share-item">
+                <div class="member-lead">
+                  <span class="member-name-tag"><span class="status-dot" style="background: #ff9500;"></span> Nico</span>
+                  <span class="member-share-pct">50.0%</span>
+                </div>
+                <div class="member-pts-detail"><span>Completed effort:</span><strong>4.0 pts</strong></div>
+                <div class="member-pts-detail" style="font-size: 10px; color: var(--label-tertiary);"><span>1 task finished</span><span>(Sketch layout)</span></div>
+                <div class="member-in-progress-note">9 pts active in flight</div>
+              </div>
+
+              <div class="member-share-item">
+                <div class="member-lead">
+                  <span class="member-name-tag"><span class="status-dot" style="background: #007aff;"></span> Alex (Leader)</span>
+                  <span class="member-share-pct">25.0%</span>
+                </div>
+                <div class="member-pts-detail"><span>Completed effort:</span><strong>2.0 pts</strong></div>
+                <div class="member-pts-detail" style="font-size: 10px; color: var(--label-tertiary);"><span>1 task shared 50%</span><span>(Research)</span></div>
+                <div class="member-in-progress-note">6 pts active in flight</div>
+              </div>
+
+              <div class="member-share-item">
+                <div class="member-lead">
+                  <span class="member-name-tag"><span class="status-dot" style="background: #af52de;"></span> Bea</span>
+                  <span class="member-share-pct">25.0%</span>
+                </div>
+                <div class="member-pts-detail"><span>Completed effort:</span><strong>2.0 pts</strong></div>
+                <div class="member-pts-detail" style="font-size: 10px; color: var(--label-tertiary);"><span>1 task shared 50%</span><span>(Research)</span></div>
+                <div class="member-in-progress-note">8 pts pending agreement</div>
+              </div>
+
+              <div class="member-share-item">
+                <div class="member-lead">
+                  <span class="member-name-tag"><span class="status-dot" style="background: #34c759;"></span> Mika</span>
+                  <span class="member-share-pct" style="color: var(--label-tertiary);">0.0%</span>
+                </div>
+                <div class="member-pts-detail"><span>Completed effort:</span><span style="color: var(--label-tertiary);">0.0 pts</span></div>
+                <div class="member-pts-detail" style="font-size: 10px; color: var(--label-tertiary);"><span>0 tasks marked Done</span><span>—</span></div>
+                <div class="member-in-progress-note" style="color: var(--apple-blue); font-weight: 500;">17 pts active (In Progress/Review)</div>
+              </div>
+            </div>
+
+            <!-- Mandatory Policy Truth Disclaimer -->
+            <div class="policy-disclaimer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              <span>
+                <strong>OWLIBI POLICY COMPLIANCE:</strong> Effort-points share represents agreed task completions, not performance grading, fairness verdicts, or subjective evaluation.
+              </span>
+            </div>
+          </div>
+
+          <!-- Active Capacity & Workload Balance -->
+          <div class="view-header" style="margin-top: 10px;">
+            <div class="view-title-group">
+              <h2 style="font-size: 16px; font-weight: 650; color: var(--label-primary);">Team Workload In Flight</h2>
+              <span class="view-count">28 effort points across 5 active tasks</span>
+            </div>
+          </div>
+
+          <div class="workload-summary-grid">
+            <!-- Mika -->
+            <div class="workload-member-card">
+              <div class="member-lead">
+                <span class="member-name-tag"><span class="status-dot" style="background: #34c759;"></span> Mika</span>
+                <span class="points-badge highlight">17 pts</span>
+              </div>
+              <div class="workload-meter">
+                <div class="workload-meter-fill" style="width: 85%; background: var(--apple-orange);"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--label-secondary); line-height: 1.4;">
+                3 active tasks (Tasks #1, #4, #7). <strong>Near threshold warning</strong> (capacity guideline: 16 pts).
+              </div>
+            </div>
+
+            <!-- Nico -->
+            <div class="workload-member-card">
+              <div class="member-lead">
+                <span class="member-name-tag"><span class="status-dot" style="background: #ff9500;"></span> Nico</span>
+                <span class="points-badge">9 pts</span>
+              </div>
+              <div class="workload-meter">
+                <div class="workload-meter-fill" style="width: 45%; background: var(--apple-blue);"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--label-secondary); line-height: 1.4;">
+                2 active tasks (Draft labels, Prepare slide deck). Healthy workload balance.
+              </div>
+            </div>
+
+            <!-- Alex -->
+            <div class="workload-member-card">
+              <div class="member-lead">
+                <span class="member-name-tag"><span class="status-dot" style="background: #007aff;"></span> Alex</span>
+                <span class="points-badge">6 pts</span>
+              </div>
+              <div class="workload-meter">
+                <div class="workload-meter-fill" style="width: 30%; background: var(--apple-blue);"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--label-secondary); line-height: 1.4;">
+                1 active task (Slide deck co-lead). Available capacity for sprint coordination.
+              </div>
+            </div>
+
+            <!-- Bea -->
+            <div class="workload-member-card">
+              <div class="member-lead">
+                <span class="member-name-tag"><span class="status-dot" style="background: #af52de;"></span> Bea</span>
+                <span class="points-badge">8 pts</span>
+              </div>
+              <div class="workload-meter">
+                <div class="workload-meter-fill" style="width: 40%; background: var(--apple-purple);"></div>
+              </div>
+              <div style="font-size: 11px; color: var(--label-secondary); line-height: 1.4;">
+                1 task pending acceptance (Exhibit stand). Signed v2 agreement.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================================================================
+             PAGE 5: ACTIVITY AUDIT LOG VIEW (WHAT HAPPENED & ACTION SUMMARY)
+             ================================================================== -->
+        <div class="view-page" id="view-activity">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 class="view-title">Action Log & Summary (What Happened)</h1>
+              <span class="view-count">7 logged audit events · Immutable team trail</span>
+            </div>
+          </div>
+
+          <!-- High-Level Sprint Action Summary Metrics -->
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 4px;">
+            <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--label-tertiary); text-transform: uppercase;">Tasks Done & Verified</span>
+              <div style="font-size: 18px; font-weight: 700; color: var(--apple-green);">2 Tasks (8 pts)</div>
+              <span style="font-size: 10.5px; color: var(--label-secondary);">Tasks #5 & #6 approved as Done</span>
+            </div>
+            <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--label-tertiary); text-transform: uppercase;">Agreements Revised</span>
+              <div style="font-size: 18px; font-weight: 700; color: var(--apple-orange);">1 Task (v2 Pending)</div>
+              <span style="font-size: 10.5px; color: var(--label-secondary);">Exhibit stand (5 → 8 pts) awaiting Mika</span>
+            </div>
+            <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--label-tertiary); text-transform: uppercase;">Pending Review</span>
+              <div style="font-size: 18px; font-weight: 700; color: var(--apple-blue);">1 Task (5 pts)</div>
+              <span style="font-size: 10.5px; color: var(--label-secondary);">Prototype testing submitted by Mika</span>
+            </div>
+            <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 12px; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--label-tertiary); text-transform: uppercase;">Cancelled with Reason</span>
+              <div style="font-size: 18px; font-weight: 700; color: var(--label-tertiary);">1 Task (2 pts)</div>
+              <span style="font-size: 10.5px; color: var(--label-secondary);">Extra poster cancelled (Reason logged)</span>
+            </div>
+          </div>
+
+          <div class="activity-log-wrapper">
+            <div class="activity-timeline">
+              <!-- Event 1 -->
+              <div class="activity-entry">
+                <span class="activity-dot orange"></span>
+                <div class="activity-text">
+                  <strong>Mika</strong> requested leader review for <em>"Test the prototype"</em>.
+                </div>
+                <span class="activity-time">Oct 9, 2026 · 9:15 AM · Asia/Manila</span>
+              </div>
+
+              <!-- Event 2 -->
+              <div class="activity-entry">
+                <span class="activity-dot red"></span>
+                <div class="activity-text">
+                  <strong>Alex</strong> cancelled <em>"Print an extra poster"</em>.
+                </div>
+                <div class="activity-reason-box">
+                  <strong>Logged Reason:</strong> "An extra poster is no longer needed; use the display labels instead."
+                </div>
+                <span class="activity-time">Oct 8, 2026 · 3:30 PM · Asia/Manila</span>
+              </div>
+
+              <!-- Event 3 -->
+              <div class="activity-entry">
+                <span class="activity-dot"></span>
+                <div class="activity-text">
+                  <strong>Mika</strong> started working on <em>"Prepare the demo walkthrough"</em>.
+                </div>
+                <span class="activity-time">Oct 8, 2026 · 10:00 AM · Asia/Manila</span>
+              </div>
+
+              <!-- Event 4 -->
+              <div class="activity-entry">
+                <span class="activity-dot green"></span>
+                <div class="activity-text">
+                  <strong>Alex</strong> approved <em>"Sketch the exhibit layout"</em> as <strong>Done</strong>.
+                </div>
+                <span class="activity-time">Oct 3, 2026 · Asia/Manila</span>
+              </div>
+
+              <!-- Event 5 -->
+              <div class="activity-entry">
+                <span class="activity-dot green"></span>
+                <div class="activity-text">
+                  <strong>Alex</strong> approved <em>"Research the topic"</em> as <strong>Done</strong>.
+                </div>
+                <span class="activity-time">Oct 2, 2026 · Asia/Manila</span>
+              </div>
+
+              <!-- Event 6 -->
+              <div class="activity-entry">
+                <span class="activity-dot purple"></span>
+                <div class="activity-text">
+                  <strong>Bea</strong> accepted version 2 of <em>"Build the exhibit stand"</em>.
+                </div>
+                <span class="activity-time">Oct 2, 2026 · 4:15 PM</span>
+              </div>
+
+              <!-- Event 7 -->
+              <div class="activity-entry">
+                <span class="activity-dot orange"></span>
+                <div class="activity-text">
+                  <strong>Alex</strong> updated <em>"Build the exhibit stand"</em> points from 5 to 8 (Agreement v2 created).
+                </div>
+                <div class="activity-reason-box">
+                  <strong>Logged Reason:</strong> "Adjusted points to reflect required timber framing reinforcements."
+                </div>
+                <span class="activity-time">Oct 2, 2026 · 3:30 PM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================================================================
+             PAGE 6: PROFESSOR REPORT EXPORT & SPREADSHEET INSPECTOR (VIEW-REPORT)
+             ================================================================== -->
+        <div class="view-page" id="view-report">
+          <div class="view-header">
+            <div class="view-title-group">
+              <h1 class="view-title">Professor Report (.xlsx) Export</h1>
+              <span class="view-count">Four-worksheet OpenXML workbook preview</span>
+            </div>
+            <button class="mac-btn mac-btn-primary" id="view-report-dl-btn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              Download Spreadsheet (.xlsx)
+            </button>
+          </div>
+
+          <!-- Spreadsheet Chrome Container -->
+          <div style="background: var(--content-bg); border: 1px solid var(--table-border); border-radius: var(--radius-panel); overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);">
+            <!-- Excel Sheet Tabs (Top Bar) -->
+            <div style="background: var(--content-subtle); border-bottom: 1px solid var(--table-border); padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; gap: 6px;" role="tablist">
+                <button class="worksheet-tab-pill active" id="tab-sheet-summary">1. Project Summary</button>
+                <button class="worksheet-tab-pill" id="tab-sheet-tasks">2. Task Details</button>
+                <button class="worksheet-tab-pill" id="tab-sheet-contrib">3. Contribution Summary</button>
+                <button class="worksheet-tab-pill" id="tab-sheet-audit">4. Activity History</button>
+              </div>
+              <div style="font-size: 11px; font-family: var(--font-mono); color: var(--apple-blue);">
+                owlibi-campus-exhibit-20261015T114500Z.xlsx
+              </div>
+            </div>
+
+            <!-- Sheet Content 1: Project Summary -->
+            <div class="sheet-tab-content active" id="sheet-content-summary" style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+              <h3 style="font-size: 13.5px; font-weight: 700; color: var(--label-primary);">Worksheet 1 · Project Summary & Settings</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 12px;">
+                <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Project Name:</span><strong>Campus exhibit</strong></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Project UUID:</span><code style="font-family: var(--font-mono); font-size: 10.5px;">prj-ce-001</code></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Project Leader:</span><strong>Alex</strong></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Snapshot UTC:</span><span>2026-10-15T11:45:00Z</span></div>
+                </div>
+
+                <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 10px; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Effective Threshold:</span><strong>8.0 effort points</strong></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Near-Due Window:</span><strong>7 calendar days</strong></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Authoritative Completed Total:</span><strong>8.0 points (100%)</strong></div>
+                  <div style="display: flex; justify-content: space-between;"><span style="color: var(--label-tertiary);">Active Team Members:</span><span>4 students</span></div>
+                </div>
+              </div>
+
+              <!-- Status Count Summary Grid -->
+              <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 10px;">
+                <span style="font-size: 11px; font-weight: 600; color: var(--label-tertiary); text-transform: uppercase;">Task Counts by Status:</span>
+                <div style="display: flex; gap: 20px; margin-top: 6px; font-size: 12px; font-variant-numeric: tabular-nums;">
+                  <span><strong>To Do:</strong> 2</span>
+                  <span><strong>In Progress:</strong> 2</span>
+                  <span><strong>Review:</strong> 1</span>
+                  <span><strong>Done:</strong> 2</span>
+                  <span><strong>Cancelled:</strong> 1</span>
+                  <span style="color: var(--apple-blue); font-weight: 600;">Total: 8 Tasks (36 pts)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sheet Content 2: Task Details -->
+            <div class="sheet-tab-content" id="sheet-content-tasks" style="display: none; padding: 12px; overflow-x: auto;">
+              <h3 style="font-size: 13.5px; font-weight: 700; color: var(--label-primary); margin-bottom: 8px;">Worksheet 2 · Task Details (All 8 Tasks)</h3>
+              <table class="task-table" style="font-size: 11.5px;">
+                <thead>
+                  <tr>
+                    <th>Task UUID</th><th>Title</th><th>Category</th><th>Status</th><th>Points</th><th>Assignees</th><th>Agreement</th><th>Due Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>task-01</code></td><td><strong>Build the exhibit stand</strong></td><td>Build</td><td>To Do</td><td><strong>8</strong></td><td>Mika, Bea</td><td>v2 (1/2 signed)</td><td>2026-10-09</td></tr>
+                  <tr><td><code>task-02</code></td><td><strong>Draft exhibit labels</strong></td><td>Writing</td><td>To Do</td><td><strong>3</strong></td><td>Nico</td><td>v1 (Active)</td><td>2026-10-10</td></tr>
+                  <tr><td><code>task-03</code></td><td><strong>Prepare the slide deck</strong></td><td>Presentation</td><td>In Progress</td><td><strong>6</strong></td><td>Alex, Nico</td><td>v1 (Active)</td><td>2026-10-08</td></tr>
+                  <tr><td><code>task-04</code></td><td><strong>Test the prototype</strong></td><td>Testing</td><td>Review</td><td><strong>5</strong></td><td>Mika</td><td>v1 (Active)</td><td>2026-10-07</td></tr>
+                  <tr><td><code>task-05</code></td><td><strong>Research the topic</strong></td><td>Research</td><td>Done</td><td><strong>4</strong></td><td>Alex, Bea</td><td>v1 (Approved)</td><td>—</td></tr>
+                  <tr><td><code>task-06</code></td><td><strong>Sketch the exhibit layout</strong></td><td>Planning</td><td>Done</td><td><strong>4</strong></td><td>Nico</td><td>v1 (Approved)</td><td>—</td></tr>
+                  <tr><td><code>task-07</code></td><td><strong>Prepare the demo walkthrough</strong></td><td>Presentation</td><td>In Progress</td><td><strong>4</strong></td><td>Mika</td><td>v1 (Active)</td><td>2026-10-11</td></tr>
+                  <tr><td><code>task-08</code></td><td><strong>Print an extra poster</strong></td><td>Printing</td><td>Cancelled</td><td><strong>2</strong></td><td>Bea</td><td>Archived</td><td>2026-10-08</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Sheet Content 3: Contribution Summary -->
+            <div class="sheet-tab-content" id="sheet-content-contrib" style="display: none; padding: 14px; display: flex; flex-direction: column; gap: 12px;">
+              <h3 style="font-size: 13.5px; font-weight: 700; color: var(--label-primary);">Worksheet 3 · Contribution Summary (Authoritative Calculations)</h3>
+              <table class="task-table" style="font-size: 12px;">
+                <thead>
+                  <tr>
+                    <th>Member</th><th>Role</th><th>Completed Effort (pts)</th><th>Share Percentage (%)</th><th>Calculation Rule</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><strong>Nico</strong></td><td>Member</td><td><strong>4.0</strong></td><td><strong style="color: var(--apple-blue);">50.0%</strong></td><td>4.0 / 8.0 finished points</td></tr>
+                  <tr><td><strong>Alex</strong></td><td>Leader</td><td><strong>2.0</strong></td><td><strong style="color: var(--apple-blue);">25.0%</strong></td><td>2.0 / 8.0 finished points (shared Task #5)</td></tr>
+                  <tr><td><strong>Bea</strong></td><td>Member</td><td><strong>2.0</strong></td><td><strong style="color: var(--apple-blue);">25.0%</strong></td><td>2.0 / 8.0 finished points (shared Task #5)</td></tr>
+                  <tr><td><strong>Mika</strong></td><td>Member</td><td><strong>0.0</strong></td><td><strong style="color: var(--label-tertiary);">0.0%</strong></td><td>0.0 / 8.0 (17 active points currently in progress)</td></tr>
+                </tbody>
+              </table>
+              <div style="font-size: 11px; color: var(--label-tertiary); line-height: 1.4; border-top: 1px dashed var(--toolbar-border); padding-top: 8px;">
+                <strong>Official Course Note:</strong> "Completed Effort-Points Share" strictly reflects agreed task completion points. It does not represent subjective grading, student appraisal, or a fairness verdict.
+              </div>
+            </div>
+
+            <!-- Sheet Content 4: Activity History -->
+            <div class="sheet-tab-content" id="sheet-content-audit" style="display: none; padding: 12px; overflow-x: auto;">
+              <h3 style="font-size: 13.5px; font-weight: 700; color: var(--label-primary); margin-bottom: 8px;">Worksheet 4 · Activity Audit Log</h3>
+              <table class="task-table" style="font-size: 11.5px;">
+                <thead>
+                  <tr>
+                    <th>Timestamp UTC</th><th>Actor</th><th>Event Type</th><th>Task</th><th>Logged Change & Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>2026-10-09 09:15</td><td>Mika</td><td>SUBMIT_REVIEW</td><td>Test the prototype</td><td>Submitted for leader verification</td></tr>
+                  <tr><td>2026-10-08 15:30</td><td>Alex</td><td>TASK_CANCEL</td><td>Print an extra poster</td><td>Reason: "An extra poster is no longer needed; use display labels instead."</td></tr>
+                  <tr><td>2026-10-08 10:00</td><td>Mika</td><td>TASK_START</td><td>Prepare walkthrough</td><td>Status transitioned to IN_PROGRESS</td></tr>
+                  <tr><td>2026-10-03 14:00</td><td>Alex</td><td>APPROVE_DONE</td><td>Sketch layout</td><td>Approved as Done. 4.0 points credited to Nico.</td></tr>
+                  <tr><td>2026-10-02 16:30</td><td>Alex</td><td>APPROVE_DONE</td><td>Research topic</td><td>Approved as Done. 2.0 pts Alex, 2.0 pts Bea.</td></tr>
+                  <tr><td>2026-10-02 16:15</td><td>Bea</td><td>AGREEMENT_SIGN</td><td>Exhibit stand</td><td>Bea accepted Agreement Version 2.</td></tr>
+                  <tr><td>2026-10-02 15:30</td><td>Alex</td><td>TASK_EDIT</td><td>Exhibit stand</td><td>Points revised 5 → 8. Reason: "Timber framing reinforcement."</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ======================================================================
+           COLUMN 3: SLIDE-OVER TASK INSPECTOR (TRAILING PANEL)
+           ====================================================================== -->
+      <aside class="mac-inspector" id="inspector-panel" aria-label="Task detail inspector">
+        <div class="inspector-header">
+          <span class="inspector-title-label">Task Inspector</span>
+          <div class="inspector-actions">
+            <button class="mac-btn mac-icon-btn" title="Share Task">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/></svg>
+            </button>
+            <button class="mac-btn mac-icon-btn" id="inspector-close-btn" title="Close Inspector">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Task Hero Info -->
+        <div class="inspector-task-hero">
+          <span class="task-hero-id" id="insp-task-id">TASK-01 · AGREEMENT V2</span>
+          <h3 class="task-hero-title" id="insp-task-title">Build the exhibit stand</h3>
+          <p class="task-hero-desc" id="insp-task-desc">
+            Assemble the structural timber base and test physical stability before mounting presentation panels.
+          </p>
+        </div>
+
+        <!-- Metadata Form Controls -->
+        <div class="inspector-group">
+          <label class="inspector-field-label" for="task-status-select">Status</label>
+          <select id="task-status-select" class="mac-select">
+            <option selected>To Do</option>
+            <option>In Progress</option>
+            <option>Review</option>
+            <option>Done</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+
+        <div class="inspector-group">
+          <label class="inspector-field-label" for="task-effort-input">Effort Points</label>
+          <input id="task-effort-input" class="mac-input" type="number" value="8" min="1" max="100">
+          <div class="inspector-warn-note" id="insp-effort-warn">
+            ⚠️ Changing effort points creates a new agreement version, invalidating assignees' acceptance. A logged leader rationale is required.
+          </div>
+        </div>
+
+        <div class="inspector-group">
+          <label class="inspector-field-label">Category & Due Date</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <input class="mac-input" id="insp-task-category" value="Build" readonly>
+            <input class="mac-input" id="insp-task-due" value="2026-10-09" readonly>
+          </div>
+        </div>
+
+        <!-- Assignees & Signature Status -->
+        <div class="inspector-group">
+          <label class="inspector-field-label">Assignee Agreement Status (v2)</label>
+          <div class="acceptance-box" id="insp-acceptance-box">
+            <div class="acceptance-row">
+              <div class="acceptance-user">
+                <span class="avatar-bubble avatar-bea" style="width: 18px; height: 18px; font-size: 9px;">B</span>
+                <span>Bea</span>
+              </div>
+              <span class="acceptance-status-tag signed">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                Signed (Oct 2)
+              </span>
+            </div>
+            <div class="acceptance-row">
+              <div class="acceptance-user">
+                <span class="avatar-bubble avatar-mika" style="width: 18px; height: 18px; font-size: 9px;">M</span>
+                <span>Mika</span>
+              </div>
+              <span class="acceptance-status-tag waiting">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                Pending Acceptance
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agreement Version Card -->
+        <div class="inspector-group">
+          <label class="inspector-field-label">Agreement History</label>
+          <div class="agreement-meta-box">
+            <div class="agreement-meta-row" style="display: flex; justify-content: space-between; font-weight: 500;">
+              <strong>Version 2 Edit Reason:</strong>
+              <span style="color: var(--label-tertiary);">Oct 2, 2026</span>
+            </div>
+            <p style="font-size: 11px; color: var(--label-secondary); margin-top: 2px;">
+              "Alex adjusted effort points from 5 to 8 to reflect required timber framing reinforcements."
+            </p>
+          </div>
+        </div>
+
+        <!-- Task Timeline -->
+        <div class="inspector-group">
+          <label class="inspector-field-label">Audit Activity</label>
+          <div class="inspector-timeline" style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+            <div style="display: flex; gap: 6px; align-items: baseline;">
+              <span class="status-dot" style="background: var(--apple-green);"></span>
+              <span>Bea accepted agreement v2 (Oct 2)</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: baseline;">
+              <span class="status-dot" style="background: var(--apple-orange);"></span>
+              <span>Alex updated points 5 → 8 (Oct 2)</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: baseline;">
+              <span class="status-dot" style="background: var(--apple-blue);"></span>
+              <span>Task created by Alex (Oct 1)</span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+    <!-- ======================================================================
+         MODAL OVERLAY 1: PROFESSOR REPORT EXPORT (.XLSX)
+         ====================================================================== -->
+    <div class="apple-modal-overlay" id="report-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+      <div class="apple-sheet">
+        <div class="apple-sheet-header">
+          <h2 class="apple-sheet-title" id="report-modal-title">Export Official Professor Report (.xlsx)</h2>
+          <button class="mac-btn mac-icon-btn" id="close-report-modal" aria-label="Close dialog">×</button>
+        </div>
+        <div class="apple-sheet-body">
+          <p style="font-size: 12.5px; color: var(--label-secondary); line-height: 1.45;">
+            Generates an authoritative four-worksheet workbook capturing project settings, completed effort-points calculations, all task agreements, and immutable audit logs.
+          </p>
+
+          <!-- Worksheet Previews -->
+          <div class="worksheet-tab-list">
+            <span class="worksheet-tab-pill active">Sheet 1: Summary</span>
+            <span class="worksheet-tab-pill">Sheet 2: Completed Points</span>
+            <span class="worksheet-tab-pill">Sheet 3: Tasks</span>
+            <span class="worksheet-tab-pill">Sheet 4: Audit Log</span>
+          </div>
+
+          <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 12px; font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--label-tertiary);">File Name:</span>
+              <code style="font-family: var(--font-mono); color: var(--apple-blue);">owlibi-campus-exhibit-20261015T114500Z.xlsx</code>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--label-tertiary);">Format & Security:</span>
+              <span>OpenXML Strict · Formula-free static values · UTF-8 safe</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--label-tertiary);">Completed Effort:</span>
+              <strong>8.0 completed points (100% accounted)</strong>
+            </div>
+          </div>
+
+          <div style="font-size: 11px; color: var(--label-tertiary); line-height: 1.4;">
+            <strong>Course Disclosure:</strong> "Completed Effort-Points Share" strictly documents student-agreed completed task efforts. Owlibi produces no subjective fairness verdict or grading marks.
+          </div>
+        </div>
+        <div class="apple-sheet-footer">
+          <button class="mac-btn mac-btn-secondary" id="cancel-report-btn">Cancel</button>
+          <button class="mac-btn mac-btn-primary" id="confirm-download-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            Download Spreadsheet (.xlsx)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================================
+         MODAL OVERLAY 2: AGREEMENT VERSION DIFF & SIGN SHEET
+         ====================================================================== -->
+    <div class="apple-modal-overlay" id="agreement-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="agreement-modal-title">
+      <div class="apple-sheet">
+        <div class="apple-sheet-header">
+          <h2 class="apple-sheet-title" id="agreement-modal-title">Review Task Agreement (v2)</h2>
+          <button class="mac-btn mac-icon-btn" id="close-agreement-modal" aria-label="Close dialog">×</button>
+        </div>
+        <div class="apple-sheet-body">
+          <div>
+            <span class="task-hero-id">TASK-01</span>
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--label-primary);">Build the exhibit stand</h3>
+          </div>
+
+          <!-- Diff comparison box -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="background: var(--content-subtle); border: 1px solid var(--table-border); border-radius: var(--radius-control); padding: 10px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--label-tertiary); text-transform: uppercase;">Previous Agreement (v1)</span>
+              <div style="font-size: 14px; font-weight: 600; color: var(--label-primary); margin-top: 4px;">5 Effort Points</div>
+              <div style="font-size: 11px; color: var(--label-secondary);">Assignees: Mika, Bea</div>
+            </div>
+
+            <div style="background: rgba(0, 122, 255, 0.05); border: 1px solid var(--apple-blue); border-radius: var(--radius-control); padding: 10px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--apple-blue); text-transform: uppercase;">Proposed Agreement (v2)</span>
+              <div style="font-size: 14px; font-weight: 700; color: var(--apple-blue); margin-top: 4px;">8 Effort Points (+3 pts)</div>
+              <div style="font-size: 11px; color: var(--label-secondary);">Assignees: Mika, Bea</div>
+            </div>
+          </div>
+
+          <div style="background: var(--content-subtle); border-left: 3px solid var(--apple-blue); padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 12px; color: var(--label-secondary);">
+            <strong>Leader's Logged Rationale:</strong> "Adjusted points to reflect required timber framing reinforcements."
+          </div>
+
+          <div style="font-size: 11.5px; color: var(--label-tertiary);">
+            Progression on this task is paused until all current assignees accept. Bea accepted on Oct 2, 2026.
+          </div>
+        </div>
+        <div class="apple-sheet-footer">
+          <button class="mac-btn mac-btn-secondary" id="decline-agreement-btn">Request Revision</button>
+          <button class="mac-btn mac-btn-primary" id="sign-agreement-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            Sign & Accept Agreement v2
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Apple macOS Toast HUD -->
+    <div class="apple-toast" id="apple-toast" role="status" aria-live="polite">
+      <svg viewBox="0 0 24 24" id="toast-icon"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+      <span id="toast-text">Notification</span>
+    </div>
+
+  </main>
+
+  <!-- ==========================================================================
+       MACOS INTERACTIVE VIEW ROUTER & CONTROLLER
+       ========================================================================== -->
+  
+  <script src="/mockup/mockup.js" defer></script>
+</body>
+</html>
