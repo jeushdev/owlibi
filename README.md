@@ -33,17 +33,19 @@ The backend is the source of truth for identity, permissions, task transitions, 
 
 - Git
 - JDK 21 or newer
-- Maven 3.9+ (or the Maven Wrapper, once added)
-- PostgreSQL 17, or Docker to run it in a container
+- Node.js 24 or newer (builds the web files; no `npm install` needed)
+- Docker (runs PostgreSQL; the integration tests also need it)
 - A modern browser (Chrome or Edge recommended)
+
+Maven is not needed: the included `mvnw` wrapper downloads it.
 
 Check your setup:
 
 ```bash
 java -version
-mvn -version
+node -v
 git --version
-docker --version   # only if using Docker for PostgreSQL
+docker --version
 ```
 
 ## Getting started
@@ -65,33 +67,35 @@ cp .env.example .env
 
 | Variable | Purpose |
 |---|---|
-| `DB_URL` | JDBC URL, e.g. `jdbc:postgresql://127.0.0.1:5432/owlibi` |
-| `DB_USER` | Database user |
-| `DB_PASSWORD` | Database password |
-| `SERVER_PORT` | App port (default `8080`) |
+| `OWLIBI_ADMIN_PASSWORD` | Password of the database admin user (used only to create the database) |
+| `OWLIBI_MIGRATION_PASSWORD` | Password of the role that runs schema migrations |
+| `OWLIBI_RUNTIME_PASSWORD` | Password of the limited role the app uses |
+| `OWLIBI_DB_PORT` | Optional. Database port on your computer (default `55580`) |
+| `OWLIBI_API_PORT` | Optional. App port (default `8080`) |
+
+Use three different random passwords. They are only read the first time the database is created, so keep `.env` with the database volume.
 
 ### 3. Start PostgreSQL
 
-With Docker:
-
 ```bash
-docker run --name owlibi-db -e POSTGRES_DB=owlibi \
-  -e POSTGRES_USER=owlibi -e POSTGRES_PASSWORD=[choose-a-password] \
-  -p 5432:5432 -d postgres:17
+docker compose --env-file .env up -d db
 ```
 
-### 4. Run the app
+### 4. Build the web files and run the app
 
 ```bash
-mvn spring-boot:run
+node web-client/scripts/build.mjs
+set -a; . ./.env; set +a
+./mvnw -f server-api/pom.xml spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-Open <http://127.0.0.1:8080/>. Press `Ctrl+C` in the terminal to stop it. Your database data is kept.
+On Windows use `mvnw.cmd` and set the `.env` values as environment variables in PowerShell first. Open <http://127.0.0.1:8080/>. `http://127.0.0.1:8080/api/v1/health` should answer `{"status":"UP"}`. Press `Ctrl+C` to stop the app; `docker compose --env-file .env stop db` stops the database. Your data is kept.
 
 ### 5. Run the tests
 
 ```bash
-mvn test
+node --test web-client/tests/unit
+./mvnw -f server-api/pom.xml verify
 ```
 
 ## Project structure (planned)
