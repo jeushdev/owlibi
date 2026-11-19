@@ -1,0 +1,29 @@
+# Production settings used by hosting/Dockerfile.render and start-render.sh.
+owlibi:
+  hosted:
+    frontend-origin: ${OWLIBI_FRONTEND_ORIGIN}
+spring:
+  datasource:
+    url: ${OWLIBI_RUNTIME_URL}
+    username: ${OWLIBI_RUNTIME_USER}
+    password: ${OWLIBI_RUNTIME_PASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+  flyway:
+    enabled: false
+    url: ""
+    user: ""
+    password: ""
+server:
+  address: 0.0.0.0
+  port: ${PORT:10000}
+  forward-headers-strategy: none
+  shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
+        path: /

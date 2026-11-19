@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: owlibi-reference
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:${OWLIBI_DB_PORT:55580}/owlibi?currentSchema=owlibi&connectTimeout=3&socketTimeout=5
+    username: owlibi_runtime
+    password: ${OWLIBI_RUNTIME_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 3000
+      initialization-fail-timeout: 1
+  flyway:
+    url: ${spring.datasource.url}
+    user: owlibi_migrator
+    password: ${OWLIBI_MIGRATION_PASSWORD}
+    default-schema: owlibi
+    schemas: owlibi
+    create-schemas: false
+    validate-on-migrate: true
+    clean-disabled: true
+server:
+  address: 127.0.0.1
+  port: ${OWLIBI_API_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        path: /
