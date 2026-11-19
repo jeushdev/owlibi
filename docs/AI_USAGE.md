@@ -7,7 +7,7 @@ This file says what was written by AI, what was copied, and who did what. It is 
 ## Summary
 
 - The application code in this repository was **not written from scratch by the team**. It was copied, in small commits, from a reference application that was **generated with AI coding assistants** and lives outside this repository, in `fairshare-java-draft/ai-reference/`.
-- The reference's own disclosure names Codex for several slices, and Claude Code was also used. TODO(Jeush): confirm which AI tools were used and for what.
+- The reference's own disclosure names Codex for several slices, and Claude Code was also used. Jeush confirmed that **Codex and Claude Code** are the AI tools used for the reference and for the copying; no other AI tool is claimed.
 - Copying was done with AI assistance as well. Files were taken from the reference at the same relative path, with only the files listed in the team's plan.
 - The test commands in the [README](../README.md) check that the copied code still builds and passes. They do not make the code the team's own work.
 
@@ -38,17 +38,17 @@ Pieces that were still owed were added by **Jeush** on the `jeushdev/finish` bra
 
 ### Tests written by John
 
-`ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest` and `DatabaseReadinessServiceIT` are not in the reference. They were written by John. TODO(Jeush): confirm with John whether AI assisted them.
+`ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest` and `DatabaseReadinessServiceIT` are not in the reference. They were written by John **with AI assistance** (as reported by Jeush).
 
 ## Who can explain what
 
-Each member must be able to explain, in about a minute, the files they present.
+Each member must be able to explain, in about a minute, the files they present. This table is a draft taken from "Who did what"; each person should replace it with the files they found hardest.
 
 | Person | Files they can explain |
 |---|---|
-| Jeush | TODO(Jeush): confirm |
-| John | TODO(Jeush): confirm |
-| Julia | TODO(Jeush): confirm |
+| Jeush | Account and auth security, snapshots, projects, hosting and Render files, `AuthBoundaryIT`, `ProjectBoundaryIT`, `ReadinessIT`, `HostedPreparationIT` |
+| John | Task and summary code, Excel report code, `SummaryIT`, `TaskBoundaryIT`, `TaskEditingIT`, `ProfessorReportIT` |
+| Julia | `api.js`, `session.js`, `model.js`, `ui.js`, `main.js`, `styles.css` and the web unit tests |
 
 ## Libraries and tools
 
