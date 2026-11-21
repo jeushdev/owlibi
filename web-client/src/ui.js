@@ -1,9 +1,15 @@
-import { statuses, labels, actionLabels, actionsFor, pendingTasks, visibleTasks, validate, validateRules, projectTemplateCurrent, projectStartingRules } from './model.js';
+import { editFields, editFieldChanged, editDraft, ruleFields as ruleFieldKeys, ruleFieldChanged, rulesDraft, statuses, labels, actionLabels, actionsFor, pendingTasks, visibleTasks, validate, validateRules, projectTemplateCurrent, projectStartingRules } from './model.js';
 // All server/user strings pass through this boundary before entering markup.
 export const escapeText = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const e = escapeText;
-export const isActionConfirmation = message => /^(Task created|Task edit confirmed|Current agreement acceptance confirmed|Transition confirmed|Project rules saved|Project created|Project joined|Invitation created|Token copied)/.test(message);
-const button = (id, label, disabled = false, extra = '') => `<button type="button" id="${e(id)}" ${disabled ? 'disabled' : ''} ${extra}>${e(label)}</button>`;
+export const isActionConfirmation = message => /^(Task created|Task updated|You accepted this task|Project rules saved|Project created|Project joined|Invite created|Token copied|Report ready)/.test(message);
+// Only the control that started the current write shows the spinner (set once per markup call).
+let busyControl = null;
+const spinner = '<span class="spinner" aria-hidden="true"></span>';
+const button = (id, label, disabled = false, extra = '') => {
+  const busy = busyControl === id;
+  return `<button type="button" id="${e(id)}" ${disabled ? 'disabled' : ''} ${busy ? 'aria-busy="true"' : ''} ${extra}>${busy ? spinner : ''}${e(label)}</button>`;
+};
 const iconPaths = {
   tasks: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M4 10h16M4 15h16"/>',
   workload: '<path d="M5 19V9m7 10V4m7 15v-7"/>',
@@ -23,22 +29,91 @@ const iconPaths = {
   arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
   chevron: '<path d="m9 6 6 6-6 6"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
-  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5v.01"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  wifi: '<path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0M12 19v.01"/>'
 };
 const icon = key => `<svg class="ui-icon" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${iconPaths[key] || iconPaths.tasks}</svg>`;
 const navigationLabel = view => ({ tasks: 'Tasks', workload: 'Workload', completed: 'Completed points', activity: 'Activity', members: 'Members', settings: 'Project settings', projects: 'Projects' })[view] || 'Workspace';
-const navigationButton = (id, label, symbol, disabled = false, extra = '') => `<button type="button" id="${e(id)}" ${disabled ? 'disabled' : ''} ${extra}>${icon(symbol)}<span>${e(label)}</span></button>`;
+const navigationButton = (id, label, symbol, disabled = false, extra = '', count = null) => `<button type="button" id="${e(id)}" ${disabled ? 'disabled' : ''} ${extra}>${icon(symbol)}<span>${e(label)}</span>${count == null ? '' : `<span class="nav-count" aria-label="${e(`${count} total`)}">${e(count)}</span>`}</button>`;
 const badge = status => `<span class="tag ${e(status.toLowerCase())}">${e(labels[status])}</span>`;
 const textBlock = text => `<p class="multiline">${e(text)}</p>`;
-const time = value => value ? `${new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))} (Asia/Manila)` : '—';
-const date = value => value || '—';
+// Times are shown in the project zone (Asia/Manila); pages say so once instead of on every row.
+const timeFormat = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+const time = value => value ? timeFormat.format(new Date(value)) : '—';
+const manilaDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' });
+const manilaToday = () => manilaDay.format(new Date());
+// Due dates are calendar dates (YYYY-MM-DD); format them in UTC so no zone shifts the day.
+const shortDate = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' });
+const yearDate = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric' });
+const date = value => {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value || '—';
+  const day = new Date(`${value}T00:00:00Z`);
+  return value.slice(0, 4) === manilaToday().slice(0, 4) ? shortDate.format(day) : yearDate.format(day);
+};
+// Visual hint only: the server's workload summary stays the authority for overdue/near-due counts.
+function dueState(task, rules) {
+  if (!task.dueDate || ['DONE', 'CANCELLED'].includes(task.status)) return '';
+  const today = manilaToday();
+  if (task.dueDate < today) return 'overdue';
+  const days = (Date.parse(task.dueDate) - Date.parse(today)) / 86400000;
+  return days <= Number(rules?.nearDueDays ?? 3) ? 'near' : '';
+}
+const dueChip = (task, rules) => {
+  if (!task.dueDate) return '<span class="due-chip">No due date</span>';
+  const state = dueState(task, rules);
+  return `<span class="due-chip${state ? ` due-${state}` : ''}">${icon('clock')}${state === 'overdue' ? 'Overdue · ' : state === 'near' ? 'Due soon · ' : ''}${e(date(task.dueDate))}</span>`;
+};
 const renderedStructure = new WeakMap();
-const connectionState = s => s.busy ? 'Waiting for server confirmation…' : s.loading ? 'Refreshing…' : s.stale && s.user ? 'Stale / offline: writes disabled.' : s.user ? `Last confirmed: ${time(s.confirmedAt)}` : s.logoutUnconfirmed ? 'Could not confirm your session.' : '';
+export function connectionStatus(s) {
+  const detail = s.confirmedAt ? `Last checked ${time(s.confirmedAt)} (Manila time).` : 'Not checked yet.';
+  if (s.busy) return { state: 'saving', label: 'Saving…', title: 'Saving your change.' };
+  if (s.checking || (s.loading && s.stale && !s.offline)) return { state: 'checking', label: 'Checking…', title: `Checking for the latest changes. ${detail}` };
+  if (s.offline) return { state: 'offline', label: 'Offline', title: `Can't reach the server. Editing is paused. ${detail}` };
+  if (s.stale || s.logoutUnconfirmed) return { state: 'paused', label: 'Paused', title: `Refresh to see the latest and continue editing. ${detail}` };
+  return { state: 'live', label: 'Live', title: `Up to date. ${detail}` };
+}
 function pageHeading(title, description, actions = '') {
   return `<header class="page-heading"><div><h1 id="page-title" tabindex="-1">${title}</h1>
-    <p>${description}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`;
+    ${description ? `<p>${description}</p>` : ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`;
 }
-const pointNumber = value => String(value).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+const skeletonLines = (count = 3) => `<div class="skeleton-block" aria-hidden="true">${Array.from({ length: count }, (_, i) => `<span class="skeleton skeleton-line${i === count - 1 ? ' is-short' : ''}"></span>`).join('')}</div>`;
+const loadingRegion = (label, body) => `<div class="loading-region" role="status" aria-live="polite"><span class="sr-only">${e(label)}</span>${body}</div>`;
+const emptyState = (symbol, title, text, action = '') => `<div class="empty-state"><span class="empty-icon" aria-hidden="true">${icon(symbol)}</span><h2>${e(title)}</h2><p>${e(text)}</p>${action}</div>`;
+const avatars = (people, max = 3) => `<span class="avatar-stack">${people.slice(0, max).map(p => `<span class="avatar" title="${e(p.displayName)}" aria-hidden="true">${e(initial(p.displayName))}</span>`).join('')}${people.length > max ? `<span class="avatar avatar-more" aria-hidden="true">+${people.length - max}</span>` : ''}<span class="sr-only">${e(people.map(p => p.displayName).join(', '))}</span></span>`;
+// Names alone can repeat; add the roster position only when two members share a name.
+function memberNames(members, ids, nameOf = m => m.displayName, idOf = m => m.userId) {
+  return ids.map(id => {
+    const index = members.findIndex(m => idOf(m) === id);
+    if (index < 0) return 'Former member';
+    const name = nameOf(members[index]);
+    return members.filter(m => nameOf(m) === name).length > 1 ? `${name} (${index + 1})` : name;
+  });
+}
+const noticeHidden = ['Signed in.'];
+// A notice's kind is stored by main.js for errors; otherwise inferred from the confirmed-action wording.
+export function noticeKind(s) {
+  const text = s.notice;
+  if (!text) return '';
+  if (s.noticeFor === text && s.noticeKind) return s.noticeKind;
+  if (noticeHidden.includes(text)) return 'hidden';
+  if (isActionConfirmation(text) || /^(You’ve signed out|Signed out|Account created|You’re back online|Report ready|Loaded the latest|Your draft now matches|Used the latest|No changes|No rule changes|Project rules saved)/.test(text)) return 'success';
+  if (/^(Correct the marked|Please correct)/.test(text)) return 'error';
+  return 'info';
+}
+function toast(s) {
+  const kind = noticeKind(s);
+  if (!kind || kind === 'hidden') return '';
+  return `<div class="toast toast-${kind}"><span class="toast-icon" aria-hidden="true">${icon(kind === 'success' ? 'check' : kind === 'info' ? 'info' : 'alert')}</span><p class="toast-text">${e(s.notice)}</p><button type="button" id="dismiss-notice" class="icon-button ghost" aria-label="Dismiss message">${icon('close')}</button></div>`;
+}
+// One format for every displayed point value: drop trailing zeros ("20.00" → "20", "18.0" → "18", "2.50" → "2.5").
+// Agreed points keep up to two decimals so the shown value is never a rounded version of the agreement.
+const pointNumber = value => { const text = String(value ?? '').trim(); return /^-?\d+(\.\d+)?$/.test(text) ? text.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '') : text; };
+const nearDueText = days => Number(days) === 0 ? 'Due today' : `Due today or within ${days} ${Number(days) === 1 ? 'day' : 'days'}`;
+// Roster position is shown only to tell apart members who share a display name.
+const duplicateTag = (members, name, index, nameOf = m => m.displayName) => members.filter(m => nameOf(m) === name).length > 1 ? ` (${index + 1})` : '';
 function field(s, name, label, { type = 'text', area = false, note = '', required = false, trailing = '', placeholder = '' } = {}) {
   const err = s.errors[name];
   const control = `${area ? `<textarea id="field-${e(name)}" name="${e(name)}"` : `<input id="field-${e(name)}" name="${e(name)}" type="${e(type)}" value="${e(s.draft[name])}"${placeholder ? ` placeholder="${e(placeholder)}"` : ''}`} ${required ? 'required' : ''} ${err ? 'aria-invalid="true"' : ''} aria-describedby="note-${e(name)} error-${e(name)}" ${s.busy ? 'disabled' : ''}>${area ? `${e(s.draft[name])}</textarea>` : ''}`;
@@ -95,8 +170,39 @@ function effortPointList(rows) {
 }
 function rulesDetail(rules) {
   if (!rules?.configured) return '<p>The project leader can set up rules in Project settings.</p>';
-  return `<dl class="rules-facts"><dt>Effort scale</dt><dd>${e(rules.effortScaleName)}</dd><dt>Overload threshold</dt><dd>Above ${e(rules.overloadThreshold)} points</dd><dt>Near-due window</dt><dd>${e(rules.nearDueDays)} days, inclusive</dd><dt>Time zone</dt><dd>${e(rules.projectZone)}</dd>${rules.settingsVersion == null ? '' : `<dt>Rules version</dt><dd>${e(rules.settingsVersion)}</dd>`}</dl>
+  return `<dl class="rules-facts"><dt>Effort scale</dt><dd>${e(rules.effortScaleName)}</dd><dt>Overload threshold</dt><dd>Above ${e(pointAmount(rules.overloadThreshold))}</dd><dt>Near-due window</dt><dd>${e(nearDueText(rules.nearDueDays))}</dd><dt>Time zone</dt><dd>${e(rules.projectZone)}</dd>${''}</dl>
     <h3>Effort points</h3>${effortPointList(rules.effortScaleExamples)}`;
+}
+// Always-visible conflict card; shown only when the server copy moved past the draft's base.
+const callout = (tone, title, body, action = '') => `<section class="callout callout-${tone}" role="group" aria-label="${e(title)}"><span class="callout-icon" aria-hidden="true">${icon(tone === 'info' ? 'info' : 'alert')}</span><div><h3>${e(title)}</h3>${body}${action ? `<div class="actions">${action}</div>` : ''}</div></section>`;
+// After "Load the latest", list each field where the draft still differs from the latest server value.
+function differences(s, title, rows) {
+  if (!rows.length) return '';
+  return callout('info', title, `<p>Fields you didn’t edit now match the latest version. Saving keeps the values you entered here:</p>
+    <ul class="diff-list">${rows.map(([key, label, mine, latest]) => `<li><div><strong>${e(label)}</strong><span class="diff-values"><span class="diff-mine">${e(mine)}</span> <span aria-hidden="true">→</span><span class="sr-only">latest:</span> <span class="diff-latest">${e(latest)}</span></span></div>${button(`use-latest-${key}`, 'Use latest', s.busy, 'class="ghost"')}</li>`).join('')}</ul>`,
+    button('use-latest', 'Use latest values', s.busy));
+}
+function editDifferences(s) {
+  const latest = s.editBase, fresh = editDraft(latest), names = ids => memberNames(s.board.members, ids || [], m => m.displayName, m => m.id).join(', ') || 'None';
+  const show = { title: v => v || '—', description: v => v || '—', category: v => v || '—', dueDate: v => v ? date(v) : 'No due date', effortPoints: v => pointAmount(v), assigneeIds: names };
+  const labelsFor = { title: 'Title', description: 'Description', category: 'Category', dueDate: 'Due date', effortPoints: 'Points', assigneeIds: 'Assignees' };
+  return differences(s, 'Your edits differ from the latest version', editFields.filter(key => editFieldChanged(latest, s.draft, key)).map(key => [key, labelsFor[key], show[key](s.draft[key]), show[key](fresh[key])]));
+}
+function rulesDifferences(s) {
+  if (!s.settingsBase?.configured) return '';
+  const fresh = rulesDraft(s.settingsBase);
+  const show = { effortScaleName: v => v || '—', effortScaleExamples: rows => (rows || []).map(r => `${pointNumber(r.points)} ${r.label}`).join(', '), overloadThreshold: v => `Above ${pointAmount(v)}`, nearDueDays: v => nearDueText(v) };
+  const labelsFor = { effortScaleName: 'Effort scale name', effortScaleExamples: 'Effort points', overloadThreshold: 'Overload threshold', nearDueDays: 'Near-due window' };
+  return differences(s, 'Your edits differ from the latest rules', ruleFieldKeys.filter(key => ruleFieldChanged(fresh, s.draft, key)).map(key => [key, labelsFor[key], show[key](s.draft[key]), show[key](fresh[key])]));
+}
+function effortPicker(s, examples) {
+  const value = s.draft.effortPoints;
+  const chosen = value === undefined || value === '' ? null : examples.find(x => Number(x.points) === Number(value));
+  return `<fieldset class="effort-picker" aria-describedby="effort-example">
+    <legend>Pick a size</legend>
+    <div class="chip-group">${examples.map((x, i) => `<label class="chip" for="effort-preset-${i}"><input type="radio" id="effort-preset-${i}" name="effortPreset" value="${e(pointNumber(x.points))}" data-label="${e(x.label)}" ${chosen === x ? 'checked' : ''} ${s.busy ? 'disabled' : ''}><span><strong>${e(pointNumber(x.points))}</strong>${e(x.label)}</span></label>`).join('')}</div>
+    <p class="note" id="effort-example">${chosen ? `${e(chosen.label)} · ${e(pointAmount(chosen.points))}` : 'Pick a size, or type any number of points below.'}</p>
+  </fieldset>`;
 }
 function form(s, canWrite) {
   let content = '', heading = '', submit = '';
@@ -115,13 +221,21 @@ function form(s, canWrite) {
       break;
     case 'settings':
       heading = s.settingsBase?.configured ? 'Edit project rules' : 'Set up project rules'; submit = 'Save project rules';
-      content = `<p>Reviewed settings version ${e(s.settingsBase?.settingsVersion)} · current version ${e(s.resources.settings.data?.settingsVersion)}. Existing task agreements are preserved.</p>${!rulesAllowed ? '<p>Your draft is retained. Inspect any unknown write, then review the latest rules before saving deliberately.</p>' : ''}${button('review-settings', 'Review latest project rules', s.busy || s.loading || !!s.unknown)}<details id="current-rules" ${s.settingsNeedsReview ? 'open' : ''}><summary>Compare current project rules</summary>${rulesDetail(s.resources.settings.data)}</details>` + ruleFields(s); break;
+      {
+        const currentRules = s.resources.settings;
+        const changed = !!s.settingsBase && (s.settingsNeedsReview || (!!currentRules.data && currentRules.data.settingsVersion !== s.settingsBase.settingsVersion));
+        const review = label => button('review-settings', label, s.busy || s.loading || !!s.unknown);
+        content = changed ? callout('warning', 'These rules were changed by someone else', `<p>Your draft is kept. Load the latest rules before saving.</p>${!currentRules.stale && currentRules.data ? `<div id="current-rules" class="callout-values">${rulesDetail(currentRules.data)}</div>` : ''}`, review('Load the latest rules'))
+          : !rulesAllowed && !s.unknown ? callout('info', 'Checking the latest rules', '<p>Saving is paused until the latest rules load.</p>', review('Check again'))
+          : s.reviewedLatest ? rulesDifferences(s) : '';
+        content += ruleFields(s);
+      } break;
     case 'join':
       heading = 'Join a project'; submit = 'Join project';
       content = '<p class="note">Enter the invitation token from your project leader.</p>' + field(s, 'token', 'Invitation token', { required: true }); break;
     case 'task': case 'edit':
       heading = s.form === 'edit' ? 'Edit task' : 'New task'; submit = s.form === 'edit' ? 'Save changes' : 'Create task';
-      const effort = field(s, 'effortPoints', 'Agreed effort points', { required: true, note: 'Estimate task size. Use up to two decimal places (0.01–99999999.99).' });
+      const effort = field(s, 'effortPoints', 'Agreed effort points', { required: true, note: 'Estimate task size. Use up to two decimal places (0.01–99999999.99).', type: 'text' });
       const due = field(s, 'dueDate', 'Due date (optional)', { type: 'date', note: 'Choose a date or leave it blank. Past dates are allowed.' });
       const examples = s.resources.settings.data?.effortScaleExamples;
       content = `<div class="form-group">${field(s, 'title', 'Task title', { required: true, note: 'Up to 200 characters.' })}
@@ -130,25 +244,33 @@ function form(s, canWrite) {
         <fieldset id="field-assigneeIds" tabindex="-1" aria-describedby="assignee-help error-assigneeIds" ${s.errors.assigneeIds ? 'aria-invalid="true"' : ''}>
           <legend>Assignees</legend>
           <p class="note" id="assignee-help">Choose 1–6 members. Each assignee must accept the task and points.</p>
-          <div class="assignee-picker">${s.board.members.map((m, i) => `<label class="check" for="assignee-${i}"><input type="checkbox" name="assigneeIds" id="assignee-${i}" value="${e(m.id)}" ${s.draft.assigneeIds?.includes(m.id) ? 'checked' : ''} ${s.busy ? 'disabled' : ''}><span>${e(m.displayName)}<small>${m.role === 'LEADER' ? 'Leader' : 'Member'} · Member ${i + 1}</small></span></label>`).join('')}</div>
+          <div class="assignee-picker">${s.board.members.map((m, i) => `<label class="check" for="assignee-${i}"><input type="checkbox" name="assigneeIds" id="assignee-${i}" value="${e(m.id)}" ${s.draft.assigneeIds?.includes(m.id) ? 'checked' : ''} ${s.busy ? 'disabled' : ''}><span>${e(m.displayName)}${e(duplicateTag(s.board.members, m.displayName, i))}<small>${m.role === 'LEADER' ? 'Leader' : 'Member'}</small></span></label>`).join('')}</div>
           <span class="field-error" id="error-assigneeIds">${e(s.errors.assigneeIds)}</span>
         </fieldset>
-        <div class="form-pair task-estimate-fields"><div class="form-group">${effort}</div><div class="form-group">${due}</div></div>
-        ${examples?.length ? `<details><summary>Effort scale guide</summary>${effortPointList(examples)}</details>` : ''}`;
+        ${examples?.length ? effortPicker(s, examples) : ''}
+        <div class="form-pair task-estimate-fields"><div class="form-group">${effort}</div><div class="form-group">${due}</div></div>`;
       if (s.form === 'edit') {
         const current = s.board.tasks.find(t => t.id === s.editBase.id);
+        const changed = !!current && (s.editNeedsReview || current.version !== s.editBase.version);
+        const review = button('review-edit', 'Load the latest version', s.busy || s.loading || !!s.unknown);
+        const values = current && current.version !== s.editBase.version ? `<dl class="callout-values"><dt>Title</dt><dd>${e(current.title)}</dd><dt>Status</dt><dd>${e(labels[current.status])}</dd><dt>Points</dt><dd>${e(pointAmount(current.effortPoints))}</dd><dt>Due</dt><dd>${e(current.dueDate ? date(current.dueDate) : 'No due date')}</dd><dt>Category</dt><dd>${e(current.category || '—')}</dd><dt>Assignees</dt><dd>${e(memberNames(s.board.members, current.assigneeIds, m => m.displayName, m => m.id).join(', '))}</dd><dt>Description</dt><dd class="multiline">${e(current.description || '—')}</dd></dl>` : '<p>Load the latest version to see what changed.</p>';
+        content = (!current ? callout('warning', 'This task is no longer available', '<p>Close this form and refresh the board.</p>')
+          : changed ? callout('warning', 'This task was changed by someone else', `<p>Your draft is kept. Check the current version, then load it before saving.</p>${values}`, review)
+          : ['DONE', 'CANCELLED'].includes(current.status) ? callout('info', current.status === 'DONE' ? 'Reopen this task to edit it' : 'Cancelled tasks can’t be edited', '<p>Your draft is kept, but it can’t be saved.</p>')
+          : s.reviewedLatest ? editDifferences(s) : '') + content;
         content += field(s, 'reason', 'Reason for agreement change', { area: true, note: 'Required if you change the title, description, points, or assignees after the task has started. Up to 1,000 characters.' });
-        content += `<p>Reviewed task version ${e(s.editBase.version)} · current version ${e(current?.version)}. Saving preserves status. Real agreement changes invalidate every current assignee’s acceptance.</p>${!editAllowed ? '<p>Your draft is retained. Inspect an unknown outcome first, then review the latest terms before deliberately saving. Done must be reopened; Cancelled is immutable.</p>' : ''}${button('review-edit', 'Review latest task terms', s.busy || s.loading || !!s.unknown)}<details open><summary>Current server terms — compare with your draft</summary>${current ? `<p>${e(current.title)} · ${e(labels[current.status])} · ${e(current.effortPoints)} points · due ${e(date(current.dueDate))}</p>${textBlock(current.description)}<p>Category: ${e(current.category || '—')}</p><p>Assignees: ${e(current.assigneeAcceptances.map(a => `${a.displayName} · member ${s.board.members.findIndex(m => m.id === a.userId) + 1}`).join(', '))}</p>` : '<p>Task unavailable.</p>'}</details>`;
+        content += '<p class="note">Changing the title, description, points or assignees asks every assignee to accept again.</p>';
       } break;
     case 'reason':
       heading = actionLabels[s.reasonAction]; submit = `Confirm ${actionLabels[s.reasonAction].toLowerCase()}`;
-      content = `<p>${e(s.reasonTask.title)} · ${e(labels[s.reasonTask.status])} → ${e(s.reasonAction === 'CANCEL' ? 'Cancelled' : 'In progress')} · reviewed task version ${e(s.reasonTask.version)}</p>${!reasonAllowed ? '<p>This draft cannot be confirmed against the current task. Use Refresh to review its current state/version; close the form if this action is no longer available.</p>' : ''}` + field(s, 'reason', 'Reason', { area: true, required: true, note: 'Maximum 1000 Unicode code points after trimming.' });
+      content = `<p>${e(s.reasonTask.title)} · ${e(labels[s.reasonTask.status])} → ${e(s.reasonAction === 'CANCEL' ? 'Cancelled' : 'In progress')}</p>${!reasonAllowed ? '<p>This task has changed since you opened this form. Refresh to see the latest, or close the form if the action is no longer available.</p>' : ''}` + field(s, 'reason', 'Reason', { area: true, required: true, note: 'Up to 1000 characters.' });
       if (s.reasonAction === 'CANCEL') content += '<p>Cancelled tasks earn no completed points and leave open workload. There is no Cancelled recovery.</p>';
       break;
   }
   const auth = ['login', 'register'].includes(s.form);
   const headingTag = auth ? 'h1' : 'h2';
-  const submitButton = `<button class="primary" type="submit" id="submit-form" ${s.busy || s.unknown || !reasonAllowed || !editAllowed || !rulesAllowed || (!auth && !canWrite) || s.rateUntil > Date.now() ? 'disabled' : ''}>${s.busy ? 'Waiting for server…' : e(submit)}</button>`;
+  const submitBusy = s.busy && busyControl === 'submit-form';
+  const submitButton = `<button class="primary" type="submit" id="submit-form" ${s.busy || s.unknown || !reasonAllowed || !editAllowed || !rulesAllowed || (!auth && !canWrite) || s.rateUntil > Date.now() ? 'disabled' : ''} ${submitBusy ? 'aria-busy="true"' : ''}>${submitBusy ? spinner : ''}${s.busy ? ({ login: 'Signing in…', register: 'Creating account…', join: 'Joining…', task: 'Creating task…', edit: 'Saving changes…', settings: 'Saving rules…' }[s.form] || 'Saving…') : e(submit)}</button>`;
   if (auth) {
     const lede = s.form === 'login' ? 'Sign in to your team’s project workspace.' : 'Create a profile to join or start a project.';
     const switchText = s.form === 'login' ? ['New to Owlibi?', 'Create an account'] : ['Already have an account?', 'Sign in'];
@@ -188,8 +310,15 @@ function projectsPage(s, canWrite) {
       <div class="actions">${s.form === 'join' ? '' : button('join-project', 'Join project', !canWrite)}${empty ? '' : button('new-project', 'Create project', !canWrite, 'class="primary"')}</div>
     </header>
     ${s.form === 'join' ? form(s, canWrite) : ''}
-    ${s.projects.length ? projectList(s) : s.form === 'join' ? '' : empty ? `<section class="projects-empty"><span class="empty-project-icon">${icon('projects')}</span><h2>No projects yet</h2><p>Create a new project or join one using an invitation.</p>${button('new-project', 'Create project', !canWrite, 'class="primary"')}</section>` : `<p class="projects-list-status">${s.loading ? 'Loading projects…' : 'Refresh to load your projects.'}</p>`}
+    ${s.projects.length ? projectList(s) : s.form === 'join' ? '' : empty ? `<section class="projects-empty"><span class="empty-project-icon">${icon('projects')}</span><h2>No projects yet</h2><p>Create a new project or join one using an invitation.</p>${button('new-project', 'Create project', !canWrite, 'class="primary"')}</section>` : s.loading || (s.stale && !s.offline) ? loadingRegion('Loading projects', `<div class="project-directory">${Array.from({ length: 3 }, () => '<span class="skeleton skeleton-row"></span>').join('')}</div>`) : `<p class="projects-list-status">Your projects couldn’t be loaded. ${button('refresh-projects', 'Try again', s.busy || s.loading)}</p>`}
   </section>`;
+}
+function starterList(tasks) {
+  return `<ul class="starter-list">${tasks.map(task => `<li title="${e(task.description)}"><span class="starter-title">${e(task.title)}</span>${task.category ? `<span class="pill" title="${e(task.category)}">${e(task.category)}</span>` : ''}<span class="points-badge">${e(pointNumber(task.effortPoints))}<span class="sr-only"> points</span></span></li>`).join('')}</ul>`;
+}
+function rulesSummary(rules) {
+  const points = rules.effortScaleExamples.map(x => pointNumber(x.points));
+  return `<p class="note rules-summary">Starting rules: ${e(rules.effortScaleName)} scale (${e(points.join(', '))} points) · warning above ${e(pointNumber(rules.overloadThreshold))} points · near due within ${e(rules.nearDueDays)} days. You can change these in the next step.</p>`;
 }
 function templateStep(s) {
   const { catalogue } = s.resources;
@@ -199,7 +328,8 @@ function templateStep(s) {
     <section class="template-picker">
       <h3 id="template-options-title">Available templates</h3>
       <fieldset class="template-options" id="field-template" tabindex="-1" aria-labelledby="template-options-title" aria-describedby="catalogue-status error-template">
-      <div id="catalogue-status" class="note">${catalogue.loading ? 'Loading templates…' : catalogue.error ? 'Catalogue unavailable. Reload templates to continue.' : catalogue.stale ? 'Reload templates to confirm the available versions.' : ''}</div>
+      <div id="catalogue-status" class="note">${catalogue.loading ? 'Loading templates…' : catalogue.error ? 'Couldn’t load templates. Reload to continue.' : catalogue.stale ? 'Reload the templates to see the latest versions.' : ''}</div>
+      ${!catalogue.data && !catalogue.error ? loadingRegion('Loading templates', Array.from({ length: 4 }, () => '<span class="skeleton skeleton-option"></span>').join('')) : ''}
       ${(catalogue.data?.items || []).map(template => {
         const id = `template-${template.id}`;
         const checked = selected?.id === template.id && selected.version === template.version && !s.templateNeedsReview;
@@ -217,10 +347,10 @@ function templateStep(s) {
       <div class="template-details-body">
       ${selected ? `<p class="template-version"><strong>${e(templateName(selected))}</strong> · selected version ${e(selected.version)}</p>
         <p><strong>Categories:</strong> ${e(selected.categories.join(', ') || 'None')}</p>
-        ${selected.starterTasks.length ? `<details id="template-starters-${e(selected.id)}"><summary>Starter tasks (${selected.starterTasks.length})</summary><ol>${selected.starterTasks.map(task => `<li><strong>${e(task.title)}</strong> · ${e(task.category)} · ${e(task.effortPoints)} points${textBlock(task.description)}</li>`).join('')}</ol></details>` : '<p>No starter tasks. Add your own after creating the project.</p>'}
+        ${selected.starterTasks.length ? `<h4 class="starter-heading">Starter tasks (${selected.starterTasks.length})</h4>${starterList(selected.starterTasks)}` : '<p>No starter tasks. Add your own after creating the project.</p>'}
         <p class="note">${selected.starterTasks.length ? 'Starter tasks are assigned to you in To do and have no due dates. ' : ''}Assignees must accept the assignment and points before work starts.</p>
-        <details id="template-suggestions"><summary>Starting project rules</summary>${rulesDetail({ ...projectStartingRules(selected), configured: true, projectZone: 'Asia/Manila' })}</details>
-        ${!projectTemplateCurrent(s) && !catalogue.loading && !catalogue.stale && hasCurrentVersion ? `<p>Review and choose the current version to continue.</p>${button('review-template', 'Choose current version', s.busy)}` : ''}
+        ${rulesSummary(projectStartingRules(selected))}
+        ${!projectTemplateCurrent(s) && !catalogue.loading && !catalogue.stale && hasCurrentVersion ? `<p>This template was updated. Choose the current version to continue.</p>${button('review-template', 'Choose current version', s.busy)}` : ''}
       ` : '<p>Select a template to see its categories, starter tasks, and rules.</p>'}
       </div>
     </section>
@@ -249,9 +379,10 @@ function reviewStep(s, values) {
   ];
   return `<dl class="wizard-review">${fields.map(([label, value]) => `<div><dt>${e(label)}</dt><dd class="multiline">${e(value)}</dd></div>`).join('')}</dl>
     <section class="wizard-review-points"><h3>Effort points</h3>${effortPointList(values.effortScaleExamples)}</section>
+    ${s.selectedTemplate?.starterTasks?.length ? `<section class="wizard-review-points"><h3>Starter tasks (${s.selectedTemplate.starterTasks.length})</h3><p class="note">These tasks will be created and assigned to you.</p>${starterList(s.selectedTemplate.starterTasks)}</section>` : ''}
     <label class="check wizard-agreement" for="field-settingsReviewed"><input type="checkbox" id="field-settingsReviewed" name="settingsReviewed" ${s.draft.settingsReviewed ? 'checked' : ''} aria-describedby="error-settingsReviewed" ${s.busy ? 'disabled' : ''}>I have reviewed and agreed to these project rules.</label>
     <span class="field-error" id="error-settingsReviewed">${e(s.errors.settingsReviewed)}</span>
-    ${projectTemplateCurrent(s) ? '' : '<p class="note">Go back to Choose a template to confirm the current version.</p>'}`;
+    ${projectTemplateCurrent(s) || s.busy ? '' : '<p class="note">Go back to Choose a template to pick the current version.</p>'}`;
 }
 function projectWizard(s, canWrite) {
   const step = s.projectStep || 1;
@@ -274,34 +405,36 @@ function projectWizard(s, canWrite) {
         <div class="wizard-actions">
           <div class="actions">${step > 1 ? button('project-back', 'Back', s.busy || !!s.unknown) : ''}${step === 1 || step === 4 ? button('close-form', 'Cancel', s.busy) : ''}</div>
           ${step === 4 ?
-            `<button class="primary" type="submit" id="submit-form" ${!ready || !canWrite || s.rateUntil > Date.now() ? 'disabled' : ''}>${s.busy ? 'Creating project…' : 'Create project'}</button>` :
+            `<button class="primary" type="submit" id="submit-form" ${!ready || !canWrite || s.rateUntil > Date.now() ? 'disabled' : ''} ${s.busy ? 'aria-busy="true"' : ''}>${s.busy ? `${spinner}Creating project…` : 'Create project'}</button>` :
             `<button class="primary" type="submit" id="project-next" ${s.busy || s.unknown || (step === 2 && !current) ? 'disabled' : ''}>Next</button>`}
         </div>
       </form>
     </section>
-    ${s.projectListInspected ? `<section class="wizard-inspected"><h2>Projects from your last check</h2>${s.projects.length ? projectList(s) : '<p>No projects were found.</p>'}</section>` : ''}
+    ${s.projectListInspected ? `<section class="wizard-inspected"><h2>Projects from your last check</h2>${s.projects.length ? projectList(s) : '<p>No projects found.</p>'}</section>` : ''}
   </section>`;
 }
 function taskTable(s, tasks) {
-  return `<div class="table-scroll" tabindex="0" role="region" aria-label="Task table, scroll for all columns"><table class="compact"><thead><tr>${['Task', 'Status', 'Assignee', 'Points', 'Due date'].map(c => `<th scope="col"${c === 'Points' ? ' class="numeric"' : ''}>${c}</th>`).join('')}<th scope="col" class="row-arrow"><span class="sr-only">Open</span></th></tr></thead><tbody>${tasks.map(t => `<tr class="${s.selected === t.id ? 'selected' : ''}"><td><button type="button" class="task-title" id="task-${e(t.id)}" data-task="${e(t.id)}" aria-label="Open task ${e(t.title)}">${e(t.title)}</button><small${t.status !== 'REVIEW' && t.assigneeAcceptances.some(a => !a.accepted) ? ' class="agreement-pending"' : ''}>${t.status === 'REVIEW' ? 'Waiting for leader review' : t.assigneeAcceptances.some(a => !a.accepted) ? 'Agreement pending' : 'Current agreement accepted'}</small></td><td>${badge(t.status)}</td><td><span class="assignee-list">${t.assigneeAcceptances.map(a => `<span class="assignee-chip"><span class="person-initial" aria-hidden="true">${e(initial(a.displayName))}</span>${e(a.displayName)}</span>`).join('')}</span></td><td class="numeric">${e(pointNumber(t.effortPoints))}</td><td>${e(t.dueDate || 'No due date')}</td><td class="row-arrow" aria-hidden="true">${icon('chevron')}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-scroll" tabindex="0" role="region" aria-label="Task table, scroll for all columns"><table class="compact"><thead><tr>${['Task', 'Status', 'Assignee', 'Points', 'Due date'].map(c => `<th scope="col"${c === 'Points' ? ' class="numeric"' : ''}>${c}</th>`).join('')}<th scope="col" class="row-arrow"><span class="sr-only">Open</span></th></tr></thead><tbody>${tasks.map(t => `<tr class="${s.selected === t.id ? 'selected' : ''}"><td><button type="button" class="task-title" id="task-${e(t.id)}" data-task="${e(t.id)}" aria-label="Open task ${e(t.title)}">${e(t.title)}</button><small${t.status !== 'REVIEW' && t.assigneeAcceptances.some(a => !a.accepted) ? ' class="agreement-pending"' : ''}>${t.status === 'REVIEW' ? 'Waiting for leader review' : t.assigneeAcceptances.some(a => !a.accepted) ? 'Needs acceptance' : 'Accepted by everyone'}</small></td><td>${badge(t.status)}</td><td><span class="assignee-list">${t.assigneeAcceptances.map(a => `<span class="assignee-chip"><span class="person-initial" aria-hidden="true">${e(initial(a.displayName))}</span>${e(a.displayName)}</span>`).join('')}</span></td><td class="numeric">${e(pointNumber(t.effortPoints))}</td><td>${dueChip(t, s.resources?.settings?.data)}</td><td class="row-arrow" aria-hidden="true">${icon('chevron')}</td></tr>`).join('')}</tbody></table></div>`;
 }
+const laneEmpty = { TODO: 'No tasks to do', IN_PROGRESS: 'No tasks in progress', REVIEW: 'Nothing to review', DONE: 'Nothing done yet' };
 function board(s, tasks) {
   const columns = statuses.map(status => tasks.filter(t => t.status === status));
   const all = columns.flat();
   const roving = all.some(t => t.id === s.boardFocus) ? s.boardFocus : all[0]?.id;
+  const rules = s.resources?.settings?.data;
   return `<p id="board-help" class="sr-only">Use arrow keys to move, Home or End to jump within a column, and Enter or Space to open a task.</p>
     <div class="board-scroll" tabindex="0" role="region" aria-label="Task Board, scroll for all columns">
       <div class="board" aria-describedby="board-help">${columns.map((items, column) => {
         const status = statuses[column];
         return `<section class="board-lane lane-${status.toLowerCase()}" aria-label="${labels[status]}">
-          <h2><span class="lane-dot" aria-hidden="true"></span>${labels[status]}<small>${items.length}</small></h2>
-          ${items.length ? items.map(task => `<button type="button" class="card ${s.selected === task.id ? 'selected' : ''}"
+          <h2><span class="lane-dot" aria-hidden="true"></span>${labels[status]}<small class="lane-count">${items.length}</small></h2>
+          <div class="lane-cards">${items.length ? items.map(task => `<button type="button" class="card ${s.selected === task.id ? 'selected' : ''}"
             id="task-${e(task.id)}" data-task="${e(task.id)}" data-card="true" tabindex="${task.id === roving ? 0 : -1}" aria-label="Open task ${e(task.title)}">
+            <span class="card-top">${task.category ? `<span class="pill" title="${e(task.category)}">${e(task.category)}</span>` : '<span></span>'}<span class="points-badge" title="${e(pointAmount(task.effortPoints))}">${e(pointNumber(task.effortPoints))}</span></span>
             <strong>${e(task.title)}</strong>
-            <span class="card-assignees">${e(task.assigneeAcceptances.map(a => a.displayName).join(', '))}</span>
-            <span class="card-metadata"><span>${e(pointAmount(task.effortPoints))}</span><span>${e(task.dueDate ? `Due ${task.dueDate}` : 'No due date')}</span></span>
-            ${task.assigneeAcceptances.some(a => !a.accepted) ? '<small class="agreement-pending">Agreement pending</small>' : ''}
-          </button>`).join('') : '<p class="empty">No tasks in this stage.</p>'}
+            <span class="card-bottom">${avatars(task.assigneeAcceptances)}${dueChip(task, rules)}</span>
+            ${task.assigneeAcceptances.some(a => !a.accepted) ? '<small class="needs-accept">Needs acceptance</small>' : ''}
+          </button>`).join('') : `<p class="lane-empty">${e(laneEmpty[status])}</p>`}</div>
         </section>`;
       }).join('')}</div>
     </div>
@@ -323,12 +456,12 @@ function inspector(s, visible, canWrite) {
     ${textBlock(task.description || 'No description.')}
     <section class="inspector-section"><h3>Details</h3>
       <dl><dt>Category</dt><dd>${e(task.category || '—')}</dd><dt>Assignees</dt><dd>${e(task.assigneeAcceptances.map(a => a.displayName).join(', '))}</dd>
-        <dt>Points</dt><dd>${e(pointNumber(task.effortPoints))}</dd><dt>Due</dt><dd>${e(task.dueDate || 'No due date')}</dd><dt>Task version</dt><dd>${e(task.version)}</dd></dl>
+        <dt>Points</dt><dd>${e(pointNumber(task.effortPoints))}</dd><dt>Due</dt><dd>${dueChip(task, s.resources?.settings?.data)}</dd></dl>
     </section>
     <section class="agreement inspector-section">
-      <div class="section-line"><h3>Assignment agreement</h3><span class="note">Version ${e(task.agreementVersion)}</span></div>
+      <div class="section-line"><h3>Assignment agreement</h3></div>
       <p class="agreement-progress"><strong>${accepted} of ${task.assigneeAcceptances.length} accepted</strong><span>All current assignees must accept.</span></p>
-      <ul class="agreement-register">${task.assigneeAcceptances.map((a, i) => `<li><span class="person-initial" aria-hidden="true">${e(initial(a.displayName))}</span><div><strong>${e(a.displayName)}</strong><small>Assignee ${i + 1}${a.accepted ? ` · ${e(time(a.acceptedAtUtc))}` : ''}</small></div><span class="${a.accepted ? 'acceptance-ok' : 'agreement-pending'}">${a.accepted ? 'Accepted' : 'Pending'}</span></li>`).join('')}</ul>
+      <ul class="agreement-register">${task.assigneeAcceptances.map((a, i) => `<li><span class="person-initial" aria-hidden="true">${e(initial(a.displayName))}</span><div><strong>${e(a.displayName)}</strong>${a.accepted && a.acceptedAtUtc ? `<small>Accepted ${e(time(a.acceptedAtUtc))}</small>` : ''}</div><span class="${a.accepted ? 'acceptance-ok' : 'agreement-pending'}">${a.accepted ? 'Accepted' : 'Pending'}</span></li>`).join('')}</ul>
       ${canAccept ? button('accept-task', 'Accept current assignment and points', !canWrite, 'class="primary"') : ''}
     </section>
     ${leader || actions.length ? `<section class="inspector-section"><h3>Task actions</h3>
@@ -346,16 +479,20 @@ function tasksPage(s, canWrite) {
   const tasks = visibleTasks(s.board.tasks, s.filters, s.user.id);
   const pending = pendingTasks(s.board.tasks, s.user.id);
   const leader = s.board.project.role === 'LEADER';
-  return `${pageHeading('Tasks', 'Manage assignments, track progress, and review team work.', leader ? button('new-task', 'New task', !canWrite, 'class="primary"') : '')}
-    <div class="task-controls">
-      <div class="task-view-row">
-        <span class="toolbar-label" aria-hidden="true">Task view</span><div class="toolbar" role="group" aria-label="Task view">${button('view-table', 'Table', false, `aria-pressed="${s.mode === 'table'}"`)}${button('view-board', 'Board', false, `aria-pressed="${s.mode === 'board'}"`)}</div>
-      </div>
-      <div class="filters"><label>Assignee<select id="assignment"><option value="all">All assignees</option><option value="mine" ${s.filters.assignment === 'mine' ? 'selected' : ''}>Assigned to me</option>${s.board.members.map((m, i) => `<option value="${e(m.id)}" ${s.filters.assignment === m.id ? 'selected' : ''}>${e(m.displayName)} · member ${i + 1}</option>`).join('')}</select></label><label>Status<select id="status"><option value="active" ${s.filters.status === 'active' ? 'selected' : ''}>All except Cancelled</option><option value="all" ${s.filters.status === 'all' ? 'selected' : ''}>All including Cancelled</option>${[...statuses, 'CANCELLED'].map(st => `<option value="${st}" ${s.filters.status === st ? 'selected' : ''}>${labels[st]}</option>`).join('')}</select></label><label class="search">Search<input type="search" id="search" value="${e(s.filters.search)}" placeholder="Title, description or assignee"></label>${button('clear-filters', 'Clear filters')}</div>
+  const filtered = s.filters.assignment !== 'all' || s.filters.status !== 'active' || !!s.filters.search;
+  const empty = !s.board.totalTasks
+    ? emptyState('tasks', 'No tasks yet', leader ? 'Create the first task and assign it to your team.' : 'Your project leader will add tasks here.', leader ? button('new-task-empty', 'Create your first task', !canWrite, 'class="primary"') : '')
+    : emptyState('tasks', 'No matching tasks', 'Try a different search or clear the filters.', button('clear-filters-empty', 'Clear filters', false, 'class="ghost"'));
+  return `<header class="page-heading tasks-heading"><div><h1 id="page-title" tabindex="-1">Tasks</h1><p id="task-count" class="note">${tasks.length} of ${s.board.totalTasks} tasks</p></div>${leader ? `<div class="actions">${button('new-task', 'New task', !canWrite, 'class="primary"')}</div>` : ''}</header>
+    <div class="task-toolbar">
+      <div class="toolbar" role="group" aria-label="Task view">${button('view-table', 'Table', false, `aria-pressed="${s.mode === 'table'}"`)}${button('view-board', 'Board', false, `aria-pressed="${s.mode === 'board'}"`)}</div>
+      <label class="search"><span class="sr-only">Search tasks</span><input type="search" id="search" value="${e(s.filters.search)}" placeholder="Search title, description or assignee"></label>
+      <label class="inline-select"><span>Assignee</span><select id="assignment"><option value="all">All assignees</option><option value="mine" ${s.filters.assignment === 'mine' ? 'selected' : ''}>Assigned to me</option>${s.board.members.map((m, i) => `<option value="${e(m.id)}" ${s.filters.assignment === m.id ? 'selected' : ''}>${e(m.displayName)}${e(duplicateTag(s.board.members, m.displayName, i))}</option>`).join('')}</select></label>
+      <label class="inline-select"><span>Status</span><select id="status"><option value="active" ${s.filters.status === 'active' ? 'selected' : ''}>All except Cancelled</option><option value="all" ${s.filters.status === 'all' ? 'selected' : ''}>All including Cancelled</option>${[...statuses, 'CANCELLED'].map(st => `<option value="${st}" ${s.filters.status === st ? 'selected' : ''}>${labels[st]}</option>`).join('')}</select></label>
+      ${filtered ? button('clear-filters', 'Clear filters', false, 'class="ghost"') : ''}
     </div>
-    ${pending.length ? `<button type="button" id="pending" class="pending-banner">${icon('clock')}<strong>${pending.length} ${pending.length === 1 ? 'assignment' : 'assignments'} awaiting your acceptance</strong><span>Review assignments ${icon('arrow')}</span></button>` : ''}
-    <p id="task-count" class="note">${tasks.length} / ${s.board.totalTasks} tasks</p>
-    ${!tasks.length ? `<div class="empty">${s.board.totalTasks ? 'No tasks match these filters.' : 'No tasks yet. The leader can create the first task.'}</div>` : s.mode === 'table' ? taskTable(s, tasks) : board(s, tasks)}`;
+    ${pending.length ? `<button type="button" id="pending" class="pending-banner">${icon('clock')}<strong>${pending.length} ${pending.length === 1 ? 'task needs' : 'tasks need'} your acceptance</strong><span>Review ${icon('arrow')}</span></button>` : ''}
+    ${!tasks.length ? empty : s.mode === 'table' ? taskTable(s, tasks) : board(s, tasks)}`;
 }
 function members(s, canWrite) {
   const members = s.board.members;
@@ -363,14 +500,14 @@ function members(s, canWrite) {
   const actions = leader ? button('create-invite', 'Create invitation', !canWrite || members.length >= 6, 'class="primary"') : '';
   return `${pageHeading('Members', 'See who is on this project and who leads it.', actions)}
     ${s.invitation ? `<section class="invitation-display"><h2>Project invitation</h2>
-      <p>Share this single-use token. It expires ${e(time(s.invitation.expiresAtUtc))}.</p>
+      <p>Share this token. It works once. It expires ${e(time(s.invitation.expiresAtUtc))} (Manila time).</p>
       <label for="invitation-token">Invitation token</label><input id="invitation-token" readonly value="${e(s.invitation.token)}">
       <div class="actions">${button('copy-invite', 'Copy invitation token')}${button('clear-invite', 'Clear token display')}</div></section>` : ''}
     <section class="content-panel" aria-labelledby="roster-title">
       <div class="section-line"><h2 id="roster-title">Project team</h2><span class="note">${members.length} of 6 places filled</span></div>
       <ul class="member-list">${members.map((member, i) => `<li>
         <span class="person-initial" aria-hidden="true">${e(initial(member.displayName))}</span>
-        <div><strong>${e(member.displayName)}${member.id === s.user.id ? ' (you)' : ''}</strong><small>Member ${i + 1}</small></div>
+        <div><strong>${e(member.displayName)}${e(duplicateTag(members, member.displayName, i))}${member.id === s.user.id ? ' (you)' : ''}</strong></div>
         <span class="role-label">${member.role === 'LEADER' ? 'Leader' : 'Member'}</span></li>`).join('')}</ul>
       ${leader ? members.length === 6 ? '<p class="note">This project has reached its member limit.</p>' : '' : '<p class="note">The project leader manages invitations.</p>'}
     </section>`;
@@ -406,7 +543,7 @@ function activity(s) {
           ${changed.length ? `<p>Updated ${e(changed.join(', '))}</p>` : ''}
           ${item.reason ? textBlock(`Reason: ${item.reason}`) : ''}
         </div></li>`;
-      }).join('')}</ol>` : `<p class="empty">${s.loading ? 'Loading activity…' : 'Project changes will appear here.'}</p>`}
+      }).join('')}</ol>` : s.loading || (s.stale && !s.offline) ? loadingRegion('Loading activity', Array.from({ length: 4 }, () => '<div class="skeleton-activity"><span class="skeleton skeleton-icon"></span>' + skeletonLines(2) + '</div>').join('')) : emptyState('activity', 'No activity yet', 'Task updates, acceptances and rule changes will show up here.')}
       ${s.eventCursor ? button('older-activity', 'Load older activity', s.loading) : ''}
     </section>`;
 }
@@ -414,14 +551,19 @@ function resourceStatus(s, key) {
   const state = s.resources[key];
   const settingsRequired = state.error?.code === 'SETTINGS_REQUIRED';
   const name = { settings: 'project rules', contribution: 'completed points', workload: 'workload' }[key];
+  // Never-loaded results show a skeleton (rendered by the page), not an error, until a first attempt fails.
+  if (!state.data && !state.error && !s.offline) return `<div class="result-state sr-only" id="state-${key}" role="status" aria-live="polite">${e(`Loading ${name}…`)}</div>`;
   let message = 'Up to date.';
-  if (state.loading) message = `Loading ${name}…`;
+  if (state.loading) message = state.data ? `Updating ${name}…` : `Loading ${name}…`;
   else if (settingsRequired) message = s.board.project.role === 'LEADER'
     ? 'Set up rules in Project settings to view Workload.'
     : 'The project leader must set up project rules before Workload is available.';
-  else if (state.error) message = `Could not load ${name}.${state.data ? ' Showing the last available result, which may be stale.' : ''}`;
-  else if (state.stale) message = state.data ? `Stale result. ${state.reason || 'Refresh to check for updates.'}` : `${name[0].toUpperCase()}${name.slice(1)} unavailable. Refresh to try again.`;
-  return `<div class="result-state${message === 'Up to date.' ? ' sr-only' : ''}" id="state-${key}" role="status" aria-live="polite">${e(message)}</div>${!state.loading && !settingsRequired && (state.error || state.stale) ? button(`retry-resource-${key}`, 'Try again', s.busy) : ''}`;
+  else if (state.error) message = `Could not load ${name}.${state.data ? ' Showing the last result, which may be out of date.' : ''}`;
+  else if (s.offline) message = state.data ? 'Showing your last saved view. Can’t reach the server right now.' : `Couldn’t load ${name}.`;
+  else if (state.stale) message = state.data ? `Out of date. ${state.reason || 'Refresh to check for updates.'}` : `${name[0].toUpperCase()}${name.slice(1)} unavailable. Refresh to try again.`;
+  // Offline with data: the banner already says so visibly; screen readers still hear the real state.
+  const quiet = message === 'Up to date.' || (s.offline && !!state.data);
+  return `<div class="result-state${quiet ? ' sr-only' : ''}" id="state-${key}" role="status" aria-live="polite">${e(message)}${!quiet && !state.loading && !settingsRequired && (state.error || state.stale) ? button(`retry-resource-${key}`, 'Try again', s.busy, 'class="ghost"') : ''}</div>`;
 }
 function settingsPage(s, canWrite) {
   const state = s.resources.settings;
@@ -431,34 +573,61 @@ function settingsPage(s, canWrite) {
   return `${pageHeading('Project settings', 'Set the effort scale, workload warnings, and due-date rules.', actions)}
     ${resourceStatus(s, 'settings')}
     ${!leader ? '<p class="note">Read-only project rules</p>' : ''}
-    ${s.form === 'settings' ? form(s, canWrite) : rules?.configured ? `<div class="settings-overview">
+    ${s.form === 'settings' ? form(s, canWrite) : !rules && !state.error && !s.offline ? loadingRegion('Loading project rules', `<div class="settings-overview"><section class="content-panel">${skeletonLines(4)}</section><section class="content-panel">${skeletonLines(4)}</section></div>`) : rules?.configured ? `<div class="settings-overview">
       <section class="content-panel"><h2>Effort scale</h2><p class="note">${e(rules.effortScaleName)} · Estimate task size</p>
         ${effortPointList(rules.effortScaleExamples)}</section>
       <section class="content-panel"><h2>Workload and deadlines</h2><dl class="settings-facts">
         <dt>Overload threshold</dt><dd>Above ${e(pointAmount(rules.overloadThreshold))}</dd>
-        <dt>Near-due window</dt><dd>${e(rules.nearDueDays)} days after today, plus today</dd>
+        <dt>Near-due window</dt><dd>${e(nearDueText(rules.nearDueDays))}</dd>
         <dt>Project time zone</dt><dd>${e(rules.projectZone)}</dd>
-        <dt>Rules version</dt><dd>${e(rules.settingsVersion)}</dd>
       </dl></section>
     </div>` : rules ? `<section class="content-panel">${rulesDetail(rules)}</section>` : ''}`;
 }
 
-function workloadMetrics(counts) {
-  return `<dl class="workload-metrics" aria-label="Project totals">${[
-    ['Open tasks', counts.openTasks], ['In review', counts.reviewTasks],
-    ['Overdue', counts.overdueTasks], ['Near due', counts.nearDueTasks]
-  ].map(([label, count]) => `<div><dt>${label}</dt><dd>${e(count)}</dd></div>`).join('')}</dl>`;
+const workloadTabs = [['all', 'All'], ['open', 'Open'], ['overdue', 'Overdue'], ['near', 'Near due'], ['later', 'Later'], ['review', 'In review']];
+const workloadFilter = {
+  all: () => true, open: t => t.status !== 'REVIEW', overdue: t => t.dateState === 'OVERDUE', near: t => t.dateState === 'NEAR_DUE',
+  later: t => t.dateState === 'LATER' || t.dateState === 'NONE' || !t.dueDate, review: t => t.status === 'REVIEW'
+};
+function workloadMetrics(counts, tab) {
+  // Each card is a shortcut to the matching breakdown tab below.
+  return `<div class="workload-metrics" role="group" aria-label="Project totals">${[
+    ['open', 'Open tasks', counts.openTasks, 'open'], ['review', 'In review', counts.reviewTasks, 'review'],
+    ['overdue', 'Overdue', counts.overdueTasks, 'overdue'], ['near', 'Near due', counts.nearDueTasks, 'near']
+  ].map(([target, label, count, tone]) => `<button type="button" id="metric-${tone}" data-workload-tab="${target}" class="metric metric-${tone}${Number(count) > 0 ? ' has-items' : ''}" aria-controls="result-tasks" ${tab === target ? 'aria-pressed="true"' : ''}><span class="metric-label">${label}</span><span class="metric-value">${e(count)}</span><span class="metric-hint">Show tasks ${icon('arrow')}</span></button>`).join('')}</div>`;
 }
 
 function workloadGauge(member, threshold) {
   const total = Number(member.remainingPoints);
   const limit = Number(threshold);
-  return `<span class="workload-value">${e(member.remainingPointsDisplay)}
+  return `<span class="workload-value">${e(pointNumber(member.remainingPointsDisplay))}
     <meter class="workload-meter${member.overloaded ? ' is-over' : ''}" aria-hidden="true" min="0" max="${e(limit)}" value="${e(Math.min(total, limit))}"></meter></span>`;
 }
 
 function reportPanel(s, canWrite) {
-  return `<section class="report-panel" aria-label="Professor report"><div class="report-copy"><h2>Professor report</h2><p>Export project details, tasks, completed points, and activity to Excel.</p></div>${s.board.project.role === 'LEADER' ? `<div class="actions">${button('export-report', 'Export professor report (.xlsx)', !canWrite || s.exportState?.running, 'aria-describedby="report-status report-help"')}${s.exportState?.running ? button('cancel-report', 'Cancel report receipt', false, 'aria-describedby="report-help"') : ''}</div>` : '<p>Only the project leader can export.</p>'}<p id="report-status">${e(s.exportState?.message || (s.board.project.role === 'LEADER' ? 'Ready to export.' : ''))}</p>${s.exportState?.running ? `<p id="report-time">${s.exportState.remaining} seconds remaining for receipt</p>` : ''}${s.board.project.role === 'LEADER' ? '<p class="note" id="report-help">Your browser handles saving. If you cancel, report generation may continue on the server.</p>' : ''}</section>`;
+  return `<section class="report-panel" aria-label="Professor report"><div class="report-copy"><h2>Professor report</h2><p>Export project details, tasks, completed points, and activity to Excel.</p></div>${s.board.project.role === 'LEADER' ? `<div class="actions">${button('export-report', 'Export professor report (.xlsx)', !canWrite || s.exportState?.running, 'aria-describedby="report-status report-help" class="primary"')}${s.exportState?.running ? button('cancel-report', 'Cancel export', false, 'aria-describedby="report-help" class="ghost"') : ''}</div>` : '<p>Only the project leader can export.</p>'}<p id="report-status">${s.exportState?.running ? spinner : ''}${e(s.exportState?.message || (s.board.project.role === 'LEADER' ? 'Ready to export.' : ''))}</p>${s.exportState?.running ? `<p id="report-time">${s.exportState.remaining} seconds left</p>` : ''}${s.board.project.role === 'LEADER' ? '<p class="note" id="report-help">Your browser will ask where to save the file.</p>' : ''}</section>`;
+}
+function summarySkeleton(completed) {
+  return loadingRegion(`Loading ${completed ? 'completed points' : 'workload'}`, `${completed ? '<span class="skeleton skeleton-total"></span>' : `<div class="workload-metrics">${'<span class="skeleton skeleton-metric"></span>'.repeat(4)}</div>`}
+    <div class="content-panel">${Array.from({ length: 3 }, () => '<span class="skeleton skeleton-row"></span>').join('')}</div>`);
+}
+function allocationTable(data) {
+  if (!data.allocations.length) return '';
+  return `<section class="content-panel breakdown-panel" id="result-tasks" aria-labelledby="allocations-title"><div class="section-line"><h2 id="allocations-title">Completed task allocations</h2><span class="note">${data.allocations.length} approved ${data.allocations.length === 1 ? 'task' : 'tasks'}</span></div>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Completed task allocations, scroll for all columns"><table class="summary-table breakdown-table"><thead><tr><th scope="col">Task</th><th scope="col">Assignees</th><th scope="col" class="numeric">Points</th><th scope="col" class="numeric">Per assignee</th></tr></thead><tbody>
+    ${data.allocations.map(task => `<tr><th scope="row">${e(task.title)}</th><td>${e(memberNames(data.members, task.assigneeIds).join(', '))}</td><td class="numeric">${e(pointNumber(task.effortPoints))}</td><td class="numeric">${e(pointNumber(task.perAssigneePoints))}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+}
+function workloadBreakdown(s, data) {
+  const tab = workloadFilter[s.workloadTab] ? s.workloadTab : 'all';
+  const rows = data.tasks.filter(workloadFilter[tab]);
+  const dateLabels = { OVERDUE: 'Overdue', NEAR_DUE: 'Near due', LATER: 'Due later', NONE: 'No due date' };
+  const tone = { OVERDUE: ' due-overdue', NEAR_DUE: ' due-near' };
+  return `<section class="content-panel breakdown-panel" id="result-tasks" aria-labelledby="breakdown-title"><div class="section-line"><h2 id="breakdown-title">Task breakdown</h2></div>
+    <div class="toolbar segmented" role="group" aria-label="Show tasks">${workloadTabs.map(([key, label]) => button(`workload-tab-${key}`, `${label} ${data.tasks.filter(workloadFilter[key]).length}`, false, `aria-pressed="${tab === key}"`)).join('')}</div>
+    ${rows.length ? `<div class="table-scroll" tabindex="0" role="region" aria-label="Task breakdown, scroll for all columns"><table class="summary-table breakdown-table"><thead><tr><th scope="col">Task</th><th scope="col">Status</th><th scope="col">Due</th><th scope="col">Assignees</th><th scope="col" class="numeric">Points each</th></tr></thead><tbody>
+      ${rows.map(task => `<tr><th scope="row">${e(task.title)}</th><td>${badge(task.status)}</td><td><span class="due-chip${tone[task.dateState] || ''}">${e(task.dueDate ? `${date(task.dueDate)} · ${dateLabels[task.dateState] || ''}` : 'No due date')}</span></td><td>${e(memberNames(data.members, task.assigneeIds).join(', '))}</td><td class="numeric">${task.status === 'REVIEW' ? '—' : e(pointNumber(task.perAssigneeRemainingPoints))}</td></tr>`).join('')}
+    </tbody></table></div>` : `<p class="empty-inline">${data.tasks.length ? 'No tasks in this group.' : 'No open tasks or tasks in Review.'}</p>`}</section>`;
 }
 
 function summaryPage(s, key, canWrite) {
@@ -468,45 +637,23 @@ function summaryPage(s, key, canWrite) {
     ? button('edit-rules', data?.rules ? 'Edit rules' : 'Set up rules', !canWrite || s.resources.settings.stale)
     : '';
   const description = completed ? 'See each member’s share of effort points from approved tasks.' : 'Track remaining points and upcoming or overdue tasks.';
-  let content = `${pageHeading(title, description, data && !completed ? actions : '')}${resourceStatus(s, key)}`;
-  if (!data) return content + (completed ? reportPanel(s, canWrite) : '');
-  content += `<p class="note">Updated <time data-result-time="${key}" datetime="${e(data.snapshot.snapshotAtUtc)}">${e(time(data.snapshot.snapshotAtUtc))}</time>${completed ? '' : ` · Due dates as of ${e(data.projectToday)}`}</p>`;
+  let content = `${pageHeading(title, description, data ? actions : '')}${resourceStatus(s, key)}`;
+  if (!data) return content + (!state.error && !s.offline ? summarySkeleton(completed) : '') + (completed ? reportPanel(s, canWrite) : '') + (s.form === 'settings' ? form(s, canWrite) : '');
+  content += `<p class="note">Updated <time data-result-time="${key}" datetime="${e(data.snapshot.snapshotAtUtc)}">${e(time(data.snapshot.snapshotAtUtc))}</time> (Manila time)${completed ? '' : ` · Due dates as of ${e(date(data.projectToday))}`}</p>`;
   if (completed) {
     content += `<p class="completed-total"><span>Total completed points</span><strong>${e(pointNumber(data.totalCompletedPointsDisplay))}</strong></p>`;
   } else {
-    content += workloadMetrics(data.projectCounts);
+    content += workloadMetrics(data.projectCounts, s.workloadTab || 'all');
     content += `<p class="note">Warning above ${e(pointAmount(data.rules.overloadThreshold))} per member, before rounding.</p>`;
   }
-  if (completed && data.empty) content += '<p class="empty" id="no-completed">No completed tasks yet.</p>';
-  else content += `<div class="table-scroll" tabindex="0" role="region" aria-label="${title} table, scroll for all columns"><table class="summary-table${completed ? ' contribution-table' : ''}"><caption>${completed ? 'Completed effort-points share' : 'Workload by member'}</caption><thead><tr>${(completed ? ['Member', 'Completed points', 'Completed effort-points share'] : ['Member', 'Remaining points', 'Overdue', 'Near due', 'Points warning']).map((label, i) => `<th scope="col"${i > 0 && (completed || i < 4) ? ' class="numeric"' : ''}>${label}</th>`).join('')}</tr></thead><tbody>${data.members.map((m, i) => `<tr data-member="${e(m.userId)}"><th scope="row">${e(m.displayName)}<small>Member ${i + 1}</small></th>${completed ? `<td class="numeric">${e(m.completedPointsDisplay)}</td><td class="numeric">${e(m.sharePercentDisplay)}% <meter aria-hidden="true" min="0" max="100" value="${e(m.sharePercentDisplay)}"></meter></td>` : `<td class="numeric">${workloadGauge(m, data.rules.overloadThreshold)}</td><td class="numeric">${e(m.overdueCount)}</td><td class="numeric">${e(m.nearDueCount)}</td><td>${m.overloaded ? '<span class="agreement-pending">Over threshold</span>' : 'None'}</td>`}</tr>`).join('')}</tbody></table></div>`;
+  if (completed && data.empty) content += emptyState('completed', 'No approved tasks yet', 'Points appear here when the leader approves a finished task.');
+  else content += `<div class="table-scroll" tabindex="0" role="region" aria-label="${title} table, scroll for all columns"><table class="summary-table${completed ? ' contribution-table' : ''}"><caption>${completed ? 'Completed effort-points share' : 'Workload by member'}</caption><thead><tr>${(completed ? ['Member', 'Completed points', 'Completed effort-points share'] : ['Member', 'Remaining points', 'Overdue', 'Near due', 'Points warning']).map((label, i) => `<th scope="col"${i > 0 && (completed ? i === 1 : i < 4) ? ' class="numeric"' : ''}>${label}</th>`).join('')}</tr></thead><tbody>${data.members.map((m, i) => `<tr data-member="${e(m.userId)}"><th scope="row"><span class="member-cell"><span class="avatar" aria-hidden="true">${e(initial(m.displayName))}</span><span>${e(m.displayName)}${e(duplicateTag(data.members, m.displayName, i))}</span></span></th>${completed ? `<td class="numeric">${e(pointNumber(m.completedPointsDisplay))}</td><td><span class="share-bar"><meter class="share-meter" aria-hidden="true" min="0" max="100" value="${e(m.sharePercentDisplay)}"></meter><span class="share-value">${e(pointNumber(m.sharePercentDisplay))}%</span></span></td>` : `<td class="numeric">${workloadGauge(m, data.rules.overloadThreshold)}</td><td class="numeric">${e(m.overdueCount)}</td><td class="numeric">${e(m.nearDueCount)}</td><td>${m.overloaded ? '<span class="tag over-tag">Over threshold</span>' : 'None'}</td>`}</tr>`).join('')}</tbody></table></div>`;
   if (completed) {
+    content += allocationTable(data);
     content += reportPanel(s, canWrite);
-    content += `<details id="result-tasks"><summary>Completed task allocations</summary>
-      ${data.allocations.length ? `<ul class="breakdown-list">${data.allocations.map(task => `<li>
-        <div class="section-line"><strong>${e(task.title)}</strong><span class="note">${e(pointAmount(task.effortPoints))} total</span></div>
-        <span>${e(task.assigneeIds.map(id => {
-          const index = data.members.findIndex(member => member.userId === id);
-          return index < 0 ? 'Member' : `${data.members[index].displayName} (Member ${index + 1})`;
-        }).join(', '))}</span>
-        <small>Each assignee receives ${e(task.perAssigneePoints)} points · Task ID ${e(task.taskId)}</small>
-      </li>`).join('')}</ul>` : '<p>No completed task allocations.</p>'}</details>`;
   } else {
-    const dateLabels = { OVERDUE: 'Overdue', NEAR_DUE: 'Near due', LATER: 'Due later' };
-    content += `<details id="result-tasks"><summary>Task breakdown</summary>
-      ${data.tasks.length ? `<ul class="breakdown-list">${data.tasks.map(task => `<li>
-        <div class="section-line"><strong>${e(task.title)}</strong>${badge(task.status)}</div>
-        <div class="breakdown-meta">
-          <span>${task.dueDate ? `Due ${e(task.dueDate)} · ${e(dateLabels[task.dateState])}` : 'No due date'}</span>
-          ${task.status === 'REVIEW' ? '' : `<span>${e(pointAmount(task.perAssigneeRemainingPoints))} per assignee</span>`}
-        </div>
-        <span>${e(task.assigneeIds.map(id => {
-          const index = data.members.findIndex(member => member.userId === id);
-          return index < 0 ? id : `${data.members[index].displayName} (Member ${index + 1})`;
-        }).join(', '))}</span>
-        <small>Task ID ${e(task.taskId)}</small>
-      </li>`).join('')}</ul>` : '<p>No open tasks or tasks in Review.</p>'}</details>`;
+    content += workloadBreakdown(s, data);
   }
-  if (completed && actions) content += actions;
   if (s.form === 'settings') content += form(s, canWrite);
   return content;
 }
@@ -528,22 +675,46 @@ const authArt = `<svg viewBox="0 0 640 900" preserveAspectRatio="xMidYMid slice"
   <path d="M302 505h36l-18 26z" fill="#5538bf"/>
   <g fill="#8d79d6"><path d="M560 215l8 22 22 8-22 8-8 22-8-22-22-8 22-8z"/><path d="M110 610l6 16 16 6-16 6-6 16-6-16-16-6 16-6z"/><circle cx="590" cy="285" r="5"/><circle cx="130" cy="560" r="5"/></g>
 </svg>`;
+const navCount = (s, view) => view === 'tasks' && s.board?.tasks ? s.board.tasks.filter(t => t.status !== 'CANCELLED').length : view === 'members' && s.board?.members ? s.board.members.length : null;
+function headerStatus(s) {
+  const status = connectionStatus(s);
+  return `<span class="status-dot" aria-hidden="true"></span><span class="status-label">${e(status.label)}</span><span class="sr-only">. ${e(status.title)}</span>`;
+}
+function bootScreen(s) {
+  const body = s.bootFailed
+    ? `<p class="boot-status">Can’t reach the server right now.</p><p class="note">Check your connection, then try again.</p>${button('refresh', 'Try again', false, 'class="primary"')}`
+    : `<span class="spinner spinner-lg" aria-hidden="true"></span><p class="boot-status">Connecting…</p>${s.bootSlow ? '<p class="note">Waking up the server, this can take up to a minute.</p>' : ''}`;
+  return `<main class="workspace boot-screen" id="main-content" tabindex="-1"><h1 id="page-title" class="sr-only" tabindex="-1">Owlibi</h1><div class="boot-card"><img class="boot-logo" src="/brand-logo.png" width="80" height="80" alt=""><p class="brand">Owlibi</p>${body}</div></main>`;
+}
+function boardSkeleton() {
+  return `<header class="page-heading"><div><h1 id="page-title" tabindex="-1"><span class="sr-only">Loading project…</span><span class="skeleton skeleton-title" aria-hidden="true"></span></h1></div></header>
+    ${loadingRegion('Loading project', `<span class="skeleton skeleton-toolbar"></span><div class="board skeleton-board">${statuses.map(() => `<div class="board-lane"><span class="skeleton skeleton-line is-short"></span>${'<span class="skeleton skeleton-card"></span>'.repeat(2)}</div>`).join('')}</div>`)}`;
+}
+function banners(s) {
+  let html = '';
+  if (s.user && s.offline) html += `<div class="banner banner-warning"><span class="banner-icon" aria-hidden="true">${icon('wifi')}</span><p>Can’t reach the server. You’re seeing your last saved view; editing is paused until the connection is back.</p><button type="button" id="retry-connection" ${s.checking || s.loading ? 'disabled aria-busy="true"' : ''}>${s.checking || s.loading ? spinner : ''}Retry</button></div>`;
+  if (!s.user && s.logoutUnconfirmed) html += `<div class="banner banner-warning"><span class="banner-icon" aria-hidden="true">${icon('alert')}</span><p>We couldn’t confirm that you’re signed in.</p>${button('refresh', 'Check sign-in', s.busy || s.loading || s.revalidating, 'class="ghost"')}</div>`;
+  if (s.unknown) html += `<div class="banner banner-warning"><span class="banner-icon" aria-hidden="true">${icon('alert')}</span><p>We couldn’t confirm your last change. ${s.unknown === 'invitation' ? 'If the invite didn’t come through, create a new one.' : 'Check whether it saved before trying again.'}</p>${button('inspect-unknown', 'Check if it saved', s.loading)}</div>`;
+  return html ? `<div class="banners">${html}</div>` : '';
+}
 export function markup(s) {
+  busyControl = s.busy ? s.busyId ?? null : s.exportState?.running ? 'export-report' : null;
+  if (!s.user && (s.booting || s.revalidating)) return bootScreen(s);
   const canWrite = !!s.user && !s.stale && !s.busy && !s.loading && !s.revalidating && !s.unknown;
-  const side = `<aside class="sidebar"><div class="brand-group"><img class="brand-mark" src="/brand-logo.png" width="80" height="80" alt=""><p class="brand">Owlibi</p>${s.board ? navigationButton('workspace-menu', 'Menu', 'menu', false, `aria-expanded="${s.navOpen}" aria-controls="project-navigation"`) : ''}</div>${s.user ? `<div class="project-context">${navigationButton('projects', 'All projects', 'projects', false, s.page === 'projects' ? 'aria-current="page"' : '')}${s.board ? `<p class="project-name">${e(s.board.project.name)}</p>` : ''}</div>${s.board ? `<nav id="project-navigation" aria-label="Project navigation"${s.navOpen ? ' class="is-open"' : ''}>${['tasks', 'workload', 'completed', 'activity', 'members', 'settings'].map(view => navigationButton(`nav-${view}`, navigationLabel(view), view, false, s.page === view ? 'aria-current="page"' : '')).join('')}</nav>` : ''}<div class="account-block"><span class="account-avatar" aria-hidden="true">${e(initial(s.user.displayName))}</span><span class="account-text"><span id="account-context">${e(s.user.displayName)}</span><span id="role-context">${s.board && s.page !== 'projects' ? (s.board.project.role === 'LEADER' ? 'Project leader' : 'Project member') : 'Your account'}</span></span></div>${navigationButton('logout', 'Sign out', 'logout', s.busy)}` : ''}<div class="theme-controls">${button('theme-light', 'Light', false, `aria-pressed="${s.theme === 'light'}"`)}${button('theme-dark', 'Dark', false, `aria-pressed="${s.theme === 'dark'}"`)}</div></aside>`;
+  const side = `<aside class="sidebar"><div class="brand-group"><img class="brand-mark" src="/brand-logo.png" width="80" height="80" alt=""><p class="brand">Owlibi</p>${s.board ? navigationButton('workspace-menu', 'Menu', 'menu', false, `aria-expanded="${s.navOpen}" aria-controls="project-navigation"`) : ''}</div>${s.user ? `<div class="project-context">${navigationButton('projects', 'All projects', 'projects', false, s.page === 'projects' ? 'aria-current="page"' : '')}${s.board ? `<p class="project-name">${e(s.board.project.name)}</p>` : ''}</div>${s.board ? `<nav id="project-navigation" aria-label="Project navigation"${s.navOpen ? ' class="is-open"' : ''}>${['tasks', 'workload', 'completed', 'activity', 'members', 'settings'].map(view => navigationButton(`nav-${view}`, navigationLabel(view), view, false, s.page === view ? 'aria-current="page"' : '', navCount(s, view))).join('')}</nav>` : ''}<div class="account-block"><span class="account-avatar" aria-hidden="true">${e(initial(s.user.displayName))}</span><span class="account-text"><span id="account-context">${e(s.user.displayName)}</span><span id="role-context">${s.board && s.page !== 'projects' ? (s.board.project.role === 'LEADER' ? 'Project leader' : 'Project member') : 'Your account'}</span></span></div>${navigationButton('logout', 'Sign out', 'logout', s.busy)}` : ''}<div class="theme-controls">${button('theme-light', 'Light', false, `aria-pressed="${s.theme === 'light'}"`)}${button('theme-dark', 'Dark', false, `aria-pressed="${s.theme === 'dark'}"`)}</div></aside>`;
   const place = !s.user ? '' : s.page === 'projects' && s.form === 'project' ? '<a class="breadcrumb-link" aria-hidden="true">Projects</a><span class="breadcrumb-separator" aria-hidden="true">›</span><span class="breadcrumb-current">Create project</span>' : s.page === 'projects' || !s.board ? '<span class="breadcrumb-current">Projects</span>' : `<span class="breadcrumb-link" aria-hidden="true">Projects</span><span class="breadcrumb-separator" aria-hidden="true">›</span><span class="breadcrumb-current breadcrumb-project">${e(s.board.project.name)}</span>`;
-  const status = s.user ? `<div class="header-status"><p id="connection-state" class="${s.stale || s.logoutUnconfirmed ? 'is-stale' : ''}">${e(connectionState(s))}</p><button type="button" id="refresh" class="icon-button" aria-label="Refresh" ${s.busy || s.loading || s.revalidating ? 'disabled' : ''}>${icon('refresh')}</button></div>` : '';
+  const status = s.user ? `<div class="header-status"><p id="connection-state" class="status-pill" data-state="${connectionStatus(s).state}" title="${e(connectionStatus(s).title)}">${headerStatus(s)}</p><button type="button" id="refresh" class="icon-button ghost" aria-label="Refresh" ${s.busy || s.loading || s.revalidating || s.checking ? 'disabled' : ''}>${icon('refresh')}</button></div>` : '';
   const chrome = `<header class="app-header" aria-label="Workspace context"><div class="workspace-location">${place}</div><span class="workspace-mode sr-only">${s.user && s.board ? s.board.project.role === 'LEADER' ? 'Leader workspace' : 'Member workspace' : 'Project workspace'}</span>${status}</header>`;
   let content = '', detail = '';
-  if (!s.user) content = s.revalidating ? '<h1 id="page-title" tabindex="-1">Checking session…</h1>' : form(s, true);
+  if (!s.user) content = form(s, true);
   else if (s.page === 'projects') {
     content = s.form === 'project' ? projectWizard(s, canWrite) : projectsPage(s, canWrite);
-  } else if (!s.board) content = `<h1 id="page-title" tabindex="-1">${s.loading ? 'Loading project…' : 'Project unavailable'}</h1>`;
+  } else if (!s.board) content = s.projectUnavailable || (s.offline && !s.loading) ? `<header class="page-heading"><div><h1 id="page-title" tabindex="-1">Project unavailable</h1><p>${s.projectUnavailable ? 'This project may have been removed, or you may no longer be a member.' : 'This project couldn’t be loaded right now.'}</p></div></header>` : boardSkeleton();
   else {
     content = s.page === 'tasks' ? tasksPage(s, canWrite) : s.page === 'members' ? members(s, canWrite) : s.page === 'settings' ? settingsPage(s, canWrite) : s.page === 'workload' ? summaryPage(s, 'workload', canWrite) : s.page === 'completed' ? summaryPage(s, 'contribution', canWrite) : activity(s);
     if (s.page === 'tasks') detail = inspector(s, visibleTasks(s.board.tasks, s.filters, s.user.id), canWrite);
   }
-  return `${side}${chrome}<main class="workspace" id="main-content" tabindex="-1"><div class="connection"><p id="feedback"${['Signed in.', 'Session revalidated.'].includes(s.notice) ? ' class="sr-only"' : isActionConfirmation(s.notice) ? ' class="feedback-success"' : ''}>${e(s.notice)}</p>${!s.user && s.logoutUnconfirmed ? `<p id="connection-state">${e(connectionState(s))}</p>${button('refresh', 'Recheck server session', s.busy || s.loading || s.revalidating, 'class="quiet-button"')}` : ''}${s.unknown ? `<p>Write outcome unknown. Inspect the authoritative view before deliberate resubmission. ${s.unknown === 'invitation' ? 'A lost invitation token cannot be recovered; choose deliberately whether to create another.' : ''}</p>${button('inspect-unknown', 'Inspect authoritative state', s.loading)}` : ''}</div>${content}</main>${detail ? `<aside class="inspector" aria-label="Task inspector">${detail}</aside>` : ''}${!s.user ? `<aside class="auth-art" aria-hidden="true">${authArt}</aside>` : ''}`;
+  return `${side}${chrome}<main class="workspace" id="main-content" tabindex="-1">${banners(s)}${content}</main>${detail ? `<aside class="inspector" aria-label="Task inspector">${detail}</aside>` : ''}${!s.user ? `<aside class="auth-art" aria-hidden="true">${authArt}</aside>` : ''}<div class="toast-region">${toast(s)}</div>`;
 }
 export function capturePosition(root) {
   return { document: [window.scrollX, window.scrollY], regions: [...root.querySelectorAll('.workspace,.inspector,.table-scroll,.board-scroll')].map(el => [el.className, el.scrollTop, el.scrollLeft]) };
@@ -553,34 +724,49 @@ export function restorePosition(root, position) {
   for (const [cls, top, left] of position.regions) { const el = [...root.querySelectorAll('[class]')].find(el => el.className === cls); if (el) { el.scrollTop = top; el.scrollLeft = left; } }
   window.scrollTo(...position.document);
 }
+// Header status updates in place so background checks never re-render the page.
+export function renderStatus(root, s) {
+  const connection = root.querySelector('#connection-state');
+  if (connection) {
+    const status = connectionStatus(s), html = headerStatus(s);
+    if (connection.dataset.state !== status.state) connection.dataset.state = status.state;
+    if (connection.title !== status.title) connection.title = status.title;
+    if (connection.innerHTML !== html) connection.innerHTML = html;
+  }
+  const refresh = root.querySelector('#refresh.icon-button');
+  if (refresh) refresh.disabled = s.busy || s.loading || s.revalidating || s.checking;
+}
+// Spinners rotate through the Web Animations API, and only when the user allows motion.
+function spin(root) {
+  if (typeof matchMedia !== 'function' || !matchMedia('(prefers-reduced-motion: no-preference)').matches) return;
+  for (const el of root.querySelectorAll('.spinner')) el.animate?.([{ transform: 'rotate(0turn)' }, { transform: 'rotate(1turn)' }], { duration: 800, iterations: Infinity });
+}
 export function render(root, s, { backgroundRefresh = false, preserveUnchanged = false } = {}) {
   // Unchanged polls retain DOM identity, including VoiceOver's reading cursor.
   // Writes still wait in main.js; stale/permission gates remain authoritative.
   const view = backgroundRefresh ? { ...s, loading: false, resources: Object.fromEntries(Object.entries(s.resources).map(([key, value]) => [key, { ...value, loading: value.data ? false : value.loading }])) } : s;
   // Draft inputs already update their live DOM values without a full render.
-  const structure = markup({ ...view, confirmedAt: null, draft: {}, resources: Object.fromEntries(Object.entries(view.resources).map(([key, value]) => [key, { ...value, data: value.data?.snapshot ? { ...value.data, snapshot: { ...value.data.snapshot, snapshotAtUtc: null } } : value.data }])) });
+  const structure = markup({ ...view, confirmedAt: null, checking: false, draft: {}, resources: Object.fromEntries(Object.entries(view.resources).map(([key, value]) => [key, { ...value, data: value.data?.snapshot ? { ...value.data, snapshot: { ...value.data.snapshot, snapshotAtUtc: null } } : value.data }])) });
   const updateConnection = () => {
-    const connection = document.getElementById('connection-state');
-    if (connection && connection.textContent !== connectionState(s)) connection.textContent = connectionState(s);
-    const refresh = document.getElementById('refresh');
-    if (refresh) refresh.disabled = s.busy || s.loading || s.revalidating;
+    renderStatus(root, s);
     for (const el of root.querySelectorAll('[data-result-time]')) { const at = s.resources[el.dataset.resultTime].data?.snapshot.snapshotAtUtc; if (at) { el.textContent = time(at); el.dateTime = at; } }
   };
   if (backgroundRefresh && preserveUnchanged && renderedStructure.get(root) === structure) { updateConnection(); return; }
   const active = document.activeElement, focusId = active?.id;
   const selection = active && 'selectionStart' in active ? [active.selectionStart, active.selectionEnd] : null;
   const position = capturePosition(root);
-  const openDetails = [...root.querySelectorAll('details[id][open]')].map(el => el.id);
   const announcement = document.getElementById('announcement');
-  const message = s.busy ? 'Waiting for server confirmation.' : s.loading && !backgroundRefresh ? 'Refreshing project data.' : s.notice;
+  const message = s.busy ? 'Saving…' : s.loading && !backgroundRefresh ? 'Refreshing project data.' : s.notice || (s.user && s.offline ? 'Can’t reach the server. Editing is paused.' : '');
   if (announcement && announcement.textContent !== message) announcement.textContent = message;
   root.innerHTML = markup(view);
-  for (const id of openDetails) { const el = document.getElementById(id); if (el?.tagName === 'DETAILS') el.open = true; }
   renderedStructure.set(root, structure);
   updateConnection();
+  spin(root);
   document.documentElement.dataset.theme = s.theme;
+  const booting = !s.user && (s.booting || s.revalidating);
   root.classList.toggle('with-inspector', !!root.querySelector('.inspector'));
-  root.classList.toggle('is-signed-out', !s.user);
+  root.classList.toggle('is-booting', booting);
+  root.classList.toggle('is-signed-out', !s.user && !booting);
   restorePosition(root, position);
   const restored = focusId && document.getElementById(focusId);
   if (restored && !restored.disabled) { restored.focus({ preventScroll: true }); if (selection && typeof restored.setSelectionRange === 'function' && ['text', 'search', 'password', 'textarea'].includes(restored.type)) restored.setSelectionRange(...selection); }
