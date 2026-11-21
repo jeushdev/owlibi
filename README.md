@@ -12,7 +12,7 @@ The contribution view shows each member's share of agreed effort points from tas
 - Assignees accept their assignment and agreed points before work starts
 - Shared-task points are split equally among assignees; only Done tasks count
 - Workload warnings based on open effort and due dates
-- Leader exports a four-worksheet `.xlsx` professor report
+- Leader exports a six-worksheet `.xlsx` professor report
 - Activity history for material changes (a record, not tamper-proof evidence)
 
 **Out of scope for v1:** instructor accounts, grading integrations, offline writes, native mobile apps, WebSockets.
@@ -100,7 +100,9 @@ node --test web-client/tests/unit
 
 ## Deploying
 
-The hosted setup is one Render Free Docker service (website and API together) plus a Supabase Free PostgreSQL database. Follow [docs/DEPLOY_RENDER_SUPABASE.md](docs/DEPLOY_RENDER_SUPABASE.md); `render.yaml` and the files in `hosting/` are what it uses. The live URL will be added here once the service is running.
+[Open the live Owlibi app](https://owlibi-api.onrender.com/). The [health endpoint](https://owlibi-api.onrender.com/api/v1/health) reports whether the app can reach its database.
+
+Render Free serves the website and API together, and Supabase Free hosts PostgreSQL. See the [deployment guide](docs/DEPLOY_RENDER_SUPABASE.md) for the setup.
 
 ## Project structure
 
