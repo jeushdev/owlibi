@@ -10,7 +10,7 @@ export class Api {
   async request(path, { method = 'GET', body, csrf, epoch, valid = () => true, retry = true, activity = false, signal } = {}) {
     if (!path.startsWith('/api/v1/') || path.includes('://')) throw new Error('Relative API path required');
     const key = `${method} ${path.split('?')[0]}`, remaining = (this.blocked.get(key) ?? 0) - this.now();
-    if (remaining > 0) throw new ApiError('RATE_LIMITED', 'Wait before trying this request again.', { status: 429, retryAfter: Math.ceil(remaining / 1000) });
+    if (remaining > 0) throw new ApiError('RATE_LIMITED', 'Too many attempts. Wait a moment and try again.', { status: 429, retryAfter: Math.ceil(remaining / 1000) });
     const unsafe = method !== 'GET';
     // Render Free may need a minute to wake up. Only safe session bootstrap reads wait longer.
     const sessionRead = !unsafe && ['/api/v1/auth/sessions', '/api/v1/auth/sessions/current'].includes(path);
@@ -21,7 +21,7 @@ export class Api {
         const headers = { Accept: 'application/json' };
         if (body !== undefined) headers['Content-Type'] = 'application/json';
         if (unsafe) {
-          if (!csrf?.token || csrf.headerName !== 'X-CSRF-TOKEN') throw new ApiError('CSRF_INVALID', 'Request verification needs refreshing.');
+          if (!csrf?.token || csrf.headerName !== 'X-CSRF-TOKEN') throw new ApiError('CSRF_INVALID', 'Your session needs refreshing. Try again.');
           headers[csrf.headerName] = csrf.token;
           if (epoch) headers['X-Session-Epoch'] = epoch;
         }
@@ -29,19 +29,19 @@ export class Api {
         const response = await this.fetcher(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), credentials: 'same-origin', cache: 'no-store', signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
         if (!valid()) throw new ApiError('OBSOLETE', 'Reply belongs to an earlier view.');
         const replyEpoch = response.headers.get('X-Session-Epoch');
-        if (epoch && replyEpoch && replyEpoch !== epoch) throw new ApiError('SESSION_CHANGED', 'The shared browser session changed.', { status: 409 });
+        if (epoch && replyEpoch && replyEpoch !== epoch) throw new ApiError('SESSION_CHANGED', 'Your account changed in another tab.', { status: 409 });
         const data = response.status === 204 ? null : await response.json();
         if (!valid()) throw new ApiError('OBSOLETE', 'Reply belongs to an earlier view.');
         if (!response.ok) {
           const retryHeader = response.headers.get('Retry-After');
           const retryAfter = /^\d+$/.test(retryHeader ?? '') ? Math.max(1, Number(retryHeader)) : 0;
           if (retryAfter) this.blocked.set(key, this.now() + retryAfter * 1000);
-          throw new ApiError(data.code ?? 'SERVICE_UNAVAILABLE', data.message ?? 'Request failed.', { status: response.status, fieldErrors: data.fieldErrors ?? {}, retryAfter, unknown: unsafe && response.status >= 500 && !activity });
+          throw new ApiError(data.code ?? 'SERVICE_UNAVAILABLE', data.message ?? 'Something went wrong. Try again.', { status: response.status, fieldErrors: data.fieldErrors ?? {}, retryAfter, unknown: unsafe && response.status >= 500 && !activity });
         }
         return data;
       } catch (cause) {
         if (signal?.aborted || !valid()) throw new ApiError('OBSOLETE', 'Cancelled read belongs to an earlier view.');
-        const error = cause instanceof ApiError ? cause : new ApiError('NETWORK', 'Could not confirm the server response.', { unknown: unsafe && !activity });
+        const error = cause instanceof ApiError ? cause : new ApiError('NETWORK', 'Couldn’t reach the server. Check your connection and try again.', { unknown: unsafe && !activity });
         if (!unsafe && retry && attempt === 0 && (error.status === 503 || ['NETWORK', 'SERVICE_UNAVAILABLE'].includes(error.code)) && valid()) { const delay = 1000 + this.jitter();
           if (this.now() + delay >= deadline) throw error;
           await this.wait(delay); continue; }
@@ -53,15 +53,15 @@ export class Api {
     if (!UUID.test(project) || !UUID.test(epoch || '')) throw reportInvalid();
     const path = `/api/v1/projects/${project}/professor-report`, key = `GET ${path}`;
     const remaining = (this.blocked.get(key) ?? 0) - this.now();
-    if (remaining > 0) throw new ApiError('REPORT_BUSY', 'Another report is still being generated. Try again deliberately after the wait.', { status: 429, retryAfter: Math.ceil(remaining / 1000) });
+    if (remaining > 0) throw new ApiError('REPORT_BUSY', 'Another report is still being generated. Try again in a moment.', { status: 429, retryAfter: Math.ceil(remaining / 1000) });
     const controller = new AbortController(), deadline = this.reportNow() + REPORT_TIMEOUT;
     const abort = () => controller.abort(signal.reason instanceof ApiError ? signal.reason : new ApiError('OBSOLETE', 'Export belongs to an earlier context.'));
-    const timer = this.later(() => controller.abort(new ApiError('REPORT_CLIENT_TIMEOUT', 'Report receipt exceeded 45 seconds. Server generation may continue until cleanup.')), REPORT_TIMEOUT);
+    const timer = this.later(() => controller.abort(new ApiError('REPORT_CLIENT_TIMEOUT', 'The report took too long. Try again in a moment.')), REPORT_TIMEOUT);
     if (signal?.aborted) abort(); else signal?.addEventListener('abort', abort, { once: true });
     const check = () => {
       if (!valid()) throw new ApiError('OBSOLETE', 'Export belongs to an earlier context.');
       if (controller.signal.aborted) throw controller.signal.reason;
-      if (this.reportNow() >= deadline) throw new ApiError('REPORT_CLIENT_TIMEOUT', 'Report receipt exceeded 45 seconds. Server generation may continue until cleanup.');
+      if (this.reportNow() >= deadline) throw new ApiError('REPORT_CLIENT_TIMEOUT', 'The report took too long. Try again in a moment.');
     };
     // Race each operation too: a fetch/read adapter ignoring abort must not offer late bytes.
     const boundedWait = async work => {
@@ -78,7 +78,7 @@ export class Api {
         return pending;
       });
       const replyEpoch = response.headers.get('X-Session-Epoch');
-      if (replyEpoch && replyEpoch !== epoch) throw new ApiError('SESSION_CHANGED', 'The shared browser session changed.', { status: 409 });
+      if (replyEpoch && replyEpoch !== epoch) throw new ApiError('SESSION_CHANGED', 'Your account changed in another tab.', { status: 409 });
       let metadata;
       if (response.ok) {
         if (response.status !== 200 || response.headers.get('Content-Type') !== REPORT_MIME || replyEpoch !== epoch || response.headers.get('Cache-Control') !== 'no-store' || response.headers.get('X-Content-Type-Options') !== 'nosniff') throw reportInvalid();
@@ -114,7 +114,7 @@ export class Api {
       check(); return { ...metadata, blob: new Blob(chunks, { type: REPORT_MIME }), bytes: size };
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      check(); throw new ApiError('REPORT_NETWORK', 'Report receipt failed or was interrupted. No download was offered; retry deliberately.');
+      check(); throw new ApiError('REPORT_NETWORK', 'The report download was interrupted. Try again.');
     } finally {
       this.cancelTimer(timer); signal?.removeEventListener('abort', abort); controller.abort();
       if (reader) { try { await reader.cancel(); } catch { /* Transport may already be closed. */ } try { reader.releaseLock(); } catch { /* Pending transport completion owns its reader. */ } }
@@ -128,11 +128,11 @@ export const REPORT_BYTES = 16 * 1024 * 1024, REPORT_TIMEOUT = 45000;
 export const REPORT_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/;
-const reportInvalid = () => new ApiError('REPORT_INVALID', 'Report response was incomplete, oversized or malformed. No download was offered; retry deliberately.');
+const reportInvalid = () => new ApiError('REPORT_INVALID', 'The report didn’t download correctly. Try again.');
 const REPORT_ERRORS = {
-  SETTINGS_REQUIRED: 'The leader must set up project rules before exporting.', REPORT_TOO_LARGE: 'The complete report exceeds the approved local export limits. History was not truncated.',
-  REPORT_BUSY: 'Another report is still being generated. Wait, then retry deliberately.', REPORT_TIMEOUT: 'Server report time budget exceeded. Retry deliberately.', REPORT_UNAVAILABLE: 'Report temporarily unavailable. Retry deliberately.',
-  UNAUTHENTICATED: 'Sign in is required.', SESSION_CHANGED: 'The shared browser session changed.', SESSION_CONTEXT_REQUIRED: 'Recheck the current browser session.', FORBIDDEN: 'Current leader permission is required.', NOT_FOUND: 'Project unavailable.', MALFORMED_REQUEST: 'Report request unavailable.',
+  SETTINGS_REQUIRED: 'The leader must set up project rules before exporting.', REPORT_TOO_LARGE: 'This report is too large to export.',
+  REPORT_BUSY: 'Another report is still being generated. Wait a moment, then try again.', REPORT_TIMEOUT: 'The report took too long. Try again.', REPORT_UNAVAILABLE: 'Reports aren’t available right now. Try again soon.',
+  UNAUTHENTICATED: 'Sign in to continue.', SESSION_CHANGED: 'Your account changed in another tab.', SESSION_CONTEXT_REQUIRED: 'Check your sign-in and try again.', FORBIDDEN: 'Only the project leader can do this.', NOT_FOUND: 'This project isn’t available.', MALFORMED_REQUEST: 'Couldn’t start the report. Try again.',
 };
 
 /** Browser handoff only; neither a click nor this lease establishes a disk save. */
