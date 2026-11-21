@@ -17,7 +17,13 @@ const iconPaths = {
   down: '<path d="M12 5v14m-6-6 6 6 6-6"/>',
   remove: '<path d="M5 7h14m-12 0 1 13h8l1-13M9 7V4h6v3"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
-  logout: '<path d="M9 4H4v16h5m4-13 5 5-5 5m-4-5h9"/>'
+  logout: '<path d="M9 4H4v16h5m4-13 5 5-5 5m-4-5h9"/>',
+  refresh: '<path d="M20 11a8 8 0 0 0-14.5-4M4 4v4h4M4 13a8 8 0 0 0 14.5 4M20 20v-4h-4"/>',
+  clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/>',
+  arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+  chevron: '<path d="m9 6 6 6-6 6"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'
 };
 const icon = key => `<svg class="ui-icon" aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${iconPaths[key] || iconPaths.tasks}</svg>`;
 const navigationLabel = view => ({ tasks: 'Tasks', workload: 'Workload', completed: 'Completed points', activity: 'Activity', members: 'Members', settings: 'Project settings', projects: 'Projects' })[view] || 'Workspace';
@@ -33,9 +39,10 @@ function pageHeading(title, description, actions = '') {
     <p>${description}</p></div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`;
 }
 const pointNumber = value => String(value).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
-function field(s, name, label, { type = 'text', area = false, note = '', required = false } = {}) {
+function field(s, name, label, { type = 'text', area = false, note = '', required = false, trailing = '', placeholder = '' } = {}) {
   const err = s.errors[name];
-  return `<label for="field-${e(name)}">${e(label)}</label>${area ? `<textarea id="field-${e(name)}" name="${e(name)}"` : `<input id="field-${e(name)}" name="${e(name)}" type="${e(type)}" value="${e(s.draft[name])}"`} ${required ? 'required' : ''} ${err ? 'aria-invalid="true"' : ''} aria-describedby="note-${e(name)} error-${e(name)}" ${s.busy ? 'disabled' : ''}>${area ? `${e(s.draft[name])}</textarea>` : ''}<small id="note-${e(name)}">${e(note)}</small><span class="field-error" id="error-${e(name)}">${e(err)}</span>`;
+  const control = `${area ? `<textarea id="field-${e(name)}" name="${e(name)}"` : `<input id="field-${e(name)}" name="${e(name)}" type="${e(type)}" value="${e(s.draft[name])}"${placeholder ? ` placeholder="${e(placeholder)}"` : ''}`} ${required ? 'required' : ''} ${err ? 'aria-invalid="true"' : ''} aria-describedby="note-${e(name)} error-${e(name)}" ${s.busy ? 'disabled' : ''}>${area ? `${e(s.draft[name])}</textarea>` : ''}`;
+  return `<label for="field-${e(name)}">${e(label)}${required ? ' <span class="required-mark" aria-hidden="true">*</span>' : ''}</label>${trailing ? `<div class="input-wrap">${control}${trailing}</div>` : control}<small id="note-${e(name)}">${e(note)}</small><span class="field-error" id="error-${e(name)}">${e(err)}</span>`;
 }
 function effortPointFields(s, wizard = false) {
   const rows = s.draft.effortScaleExamples || [];
@@ -100,11 +107,11 @@ function form(s, canWrite) {
   const rulesAllowed = s.form !== 'settings' || !!s.settingsBase && !s.settingsNeedsReview && !s.resources.settings.stale && s.resources.settings.data?.settingsVersion === s.settingsBase.settingsVersion && s.board.project.role === 'LEADER';
   switch (s.form) {
     case 'login': case 'register':
-      heading = s.form === 'login' ? 'Sign in' : 'Create account'; submit = heading;
+      heading = s.form === 'login' ? 'Welcome back.' : 'Create your account.'; submit = s.form === 'login' ? 'Sign in' : 'Create account';
       if (s.form === 'register') content += field(s, 'displayName', 'Display name', { required: true, note: 'Choose the name your teammates will see.' });
-      content += field(s, 'email', 'Email', { type: 'email', required: true, note: s.form === 'register' ? 'Use the email address you’ll sign in with.' : 'Enter the email address for your account.' });
-      content += field(s, 'password', 'Password', { type: s.showPassword ? 'text' : 'password', required: true, note: s.form === 'register' ? 'Create a password or passphrase. Spaces are allowed.' : 'Use the password you created for this account.' });
-      content += button('show-password', s.showPassword ? 'Hide password' : 'Show password', false, `aria-pressed="${!!s.showPassword}"`);
+      content += field(s, 'email', 'Email', { type: 'email', required: true, placeholder: 'you@example.com', note: s.form === 'register' ? 'Use the email address you’ll sign in with.' : 'Enter the email address for your account.' });
+      const toggle = `<button type="button" id="show-password" class="inline-toggle" aria-pressed="${!!s.showPassword}">${icon('eye')}<span>${s.showPassword ? 'Hide password' : 'Show password'}</span></button>`;
+      content += field(s, 'password', 'Password', { type: s.showPassword ? 'text' : 'password', required: true, trailing: toggle, placeholder: 'Enter your password', note: s.form === 'register' ? 'Create a password or passphrase. Spaces are allowed.' : 'Use the password you created for this account.' });
       break;
     case 'settings':
       heading = s.settingsBase?.configured ? 'Edit project rules' : 'Set up project rules'; submit = 'Save project rules';
@@ -141,7 +148,13 @@ function form(s, canWrite) {
   }
   const auth = ['login', 'register'].includes(s.form);
   const headingTag = auth ? 'h1' : 'h2';
-  return `<section class="form-panel form-${s.form}" aria-labelledby="form-title"><${headingTag} id="form-title">${e(heading)}</${headingTag}><form id="active-form" novalidate>${content}<div class="actions"><button class="primary" type="submit" id="submit-form" ${s.busy || s.unknown || !reasonAllowed || !editAllowed || !rulesAllowed || (!auth && !canWrite) || s.rateUntil > Date.now() ? 'disabled' : ''}>${s.busy ? 'Waiting for server…' : e(submit)}</button>${!auth ? button('close-form', 'Cancel', s.busy) : button('auth-switch', s.form === 'login' ? 'Create account instead' : 'Back to sign in', s.busy || !!s.unknown)}</div></form></section>`;
+  const submitButton = `<button class="primary" type="submit" id="submit-form" ${s.busy || s.unknown || !reasonAllowed || !editAllowed || !rulesAllowed || (!auth && !canWrite) || s.rateUntil > Date.now() ? 'disabled' : ''}>${s.busy ? 'Waiting for server…' : e(submit)}</button>`;
+  if (auth) {
+    const lede = s.form === 'login' ? 'Sign in to your team’s project workspace.' : 'Create a profile to join or start a project.';
+    const switchText = s.form === 'login' ? ['New to Owlibi?', 'Create an account'] : ['Already have an account?', 'Sign in'];
+    return `<section class="form-panel form-${s.form} auth-panel" aria-labelledby="form-title"><${headingTag} id="form-title">${e(heading)}</${headingTag}><p class="auth-lede">${lede}</p><form id="active-form" novalidate>${content}<div class="actions">${submitButton}</div></form><p class="auth-switch">${switchText[0]} ${button('auth-switch', switchText[1], s.busy || !!s.unknown, 'class="link-button"')}</p></section>`;
+  }
+  return `<section class="form-panel form-${s.form}" aria-labelledby="form-title"><${headingTag} id="form-title">${e(heading)}</${headingTag}><form id="active-form" novalidate>${content}<div class="actions">${submitButton}${button('close-form', 'Cancel', s.busy)}</div></form></section>`;
 }
 const projectSteps = [
   ['Project details', 'Enter your project’s basic information.'],
@@ -158,12 +171,12 @@ const templatePresentation = {
 };
 const templateName = template => templatePresentation[template?.id]?.[0] || template?.name || '';
 function projectList(s) {
-  return `<ul class="project-list project-directory">${s.projects.map(project => `<li>
+  return `<h2 class="list-heading">Your projects</h2><ul class="project-list project-directory">${s.projects.map(project => `<li>
     <button type="button" id="project-${e(project.id)}" data-project="${e(project.id)}">
       <span class="project-row-icon">${icon('projects')}</span>
       <span class="project-row-copy"><strong>${e(project.name)}</strong>${project.description ? `<span class="multiline">${e(project.description)}</span>` : ''}</span>
       <span class="project-role">${e(project.role === 'LEADER' ? 'Leader' : 'Member')}</span>
-      <span class="project-arrow" aria-hidden="true">›</span>
+      <span class="project-arrow" aria-hidden="true">${icon('arrow')}</span>
     </button>
   </li>`).join('')}</ul>${s.projectCursor ? button('more-projects', 'Load more projects', s.loading) : ''}`;
 }
@@ -270,7 +283,7 @@ function projectWizard(s, canWrite) {
   </section>`;
 }
 function taskTable(s, tasks) {
-  return `<div class="table-scroll" tabindex="0" role="region" aria-label="Task table, scroll for all columns"><table class="compact"><thead><tr>${['Task', 'Status', 'Assignees', 'Points', 'Due'].map(c => `<th scope="col"${c === 'Points' ? ' class="numeric"' : ''}>${c}</th>`).join('')}</tr></thead><tbody>${tasks.map(t => `<tr class="${s.selected === t.id ? 'selected' : ''}"><td><button type="button" class="task-title" id="task-${e(t.id)}" data-task="${e(t.id)}" aria-label="Open task ${e(t.title)}">${e(t.title)}</button><small>${t.status === 'REVIEW' ? 'Waiting for leader review' : t.assigneeAcceptances.some(a => !a.accepted) ? 'Agreement pending' : 'Current agreement accepted'}</small></td><td>${badge(t.status)}</td><td>${e(t.assigneeAcceptances.map(a => a.displayName).join(', '))}</td><td class="numeric">${e(pointNumber(t.effortPoints))}</td><td>${e(t.dueDate || 'No due date')}</td></tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-scroll" tabindex="0" role="region" aria-label="Task table, scroll for all columns"><table class="compact"><thead><tr>${['Task', 'Status', 'Assignee', 'Points', 'Due date'].map(c => `<th scope="col"${c === 'Points' ? ' class="numeric"' : ''}>${c}</th>`).join('')}<th scope="col" class="row-arrow"><span class="sr-only">Open</span></th></tr></thead><tbody>${tasks.map(t => `<tr class="${s.selected === t.id ? 'selected' : ''}"><td><button type="button" class="task-title" id="task-${e(t.id)}" data-task="${e(t.id)}" aria-label="Open task ${e(t.title)}">${e(t.title)}</button><small${t.status !== 'REVIEW' && t.assigneeAcceptances.some(a => !a.accepted) ? ' class="agreement-pending"' : ''}>${t.status === 'REVIEW' ? 'Waiting for leader review' : t.assigneeAcceptances.some(a => !a.accepted) ? 'Agreement pending' : 'Current agreement accepted'}</small></td><td>${badge(t.status)}</td><td><span class="assignee-list">${t.assigneeAcceptances.map(a => `<span class="assignee-chip"><span class="person-initial" aria-hidden="true">${e(initial(a.displayName))}</span>${e(a.displayName)}</span>`).join('')}</span></td><td class="numeric">${e(pointNumber(t.effortPoints))}</td><td>${e(t.dueDate || 'No due date')}</td><td class="row-arrow" aria-hidden="true">${icon('chevron')}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function board(s, tasks) {
   const columns = statuses.map(status => tasks.filter(t => t.status === status));
@@ -305,10 +318,10 @@ function inspector(s, visible, canWrite) {
   const canAccept = task.assigneeIds.includes(s.user.id) && !task.currentUserAcceptedAgreement && task.status !== 'CANCELLED';
   const accepted = task.assigneeAcceptances.filter(a => a.accepted).length;
   return `<section aria-labelledby="inspector-title">
-    <div class="inspector-top"><span>${index < 0 ? 'Outside current filters' : `${index + 1} of ${visible.length}`}</span>${button('close-inspector', 'Close inspector')}</div>
+    <div class="inspector-top"><h2 class="inspector-label">Task details</h2><button type="button" id="close-inspector" class="icon-button" aria-label="Close inspector">${icon('close')}</button></div>
     <header class="inspector-heading"><h2 id="inspector-title" tabindex="-1">${e(task.title)}</h2>${badge(task.status)}</header>
     ${textBlock(task.description || 'No description.')}
-    <section class="inspector-section"><h3>Task details</h3>
+    <section class="inspector-section"><h3>Details</h3>
       <dl><dt>Category</dt><dd>${e(task.category || '—')}</dd><dt>Assignees</dt><dd>${e(task.assigneeAcceptances.map(a => a.displayName).join(', '))}</dd>
         <dt>Points</dt><dd>${e(pointNumber(task.effortPoints))}</dd><dt>Due</dt><dd>${e(task.dueDate || 'No due date')}</dd><dt>Task version</dt><dd>${e(task.version)}</dd></dl>
     </section>
@@ -324,7 +337,7 @@ function inspector(s, visible, canWrite) {
         return `<div>${button(`action-${action.action}`, actionLabels[action.action], !canWrite || !action.enabled, extra)}${action.explanation ? `<small>${e(action.explanation)}</small>` : ''}</div>`;
       }).join('')}
       ${leader ? !['DONE', 'CANCELLED'].includes(task.status) ? button('edit-task', 'Edit task', !canWrite) : `<p class="note">${task.status === 'DONE' ? 'Reopen Done before editing.' : 'Cancelled tasks are immutable.'}</p>` : ''}</div></section>` : ''}
-    <div class="actions inspector-paging">${button('previous-task', 'Previous task', index <= 0)}${button('next-task', 'Next task', index < 0 || index >= visible.length - 1)}</div>
+    <div class="actions inspector-paging">${button('previous-task', 'Previous task', index <= 0)}<span class="note">${index < 0 ? 'Outside current filters' : `${index + 1} of ${visible.length}`}</span>${button('next-task', 'Next task', index < 0 || index >= visible.length - 1)}</div>
   </section>`;
 }
 const initial = name => Array.from(name || '?')[0].toUpperCase();
@@ -336,11 +349,11 @@ function tasksPage(s, canWrite) {
   return `${pageHeading('Tasks', 'Manage assignments, track progress, and review team work.', leader ? button('new-task', 'New task', !canWrite, 'class="primary"') : '')}
     <div class="task-controls">
       <div class="task-view-row">
-        <div class="toolbar" role="group" aria-label="Task view">${button('view-table', 'Table', false, `aria-pressed="${s.mode === 'table'}"`)}${button('view-board', 'Board', false, `aria-pressed="${s.mode === 'board'}"`)}</div>
-        ${button('pending', `${pending.length} awaiting your acceptance`, !pending.length)}
+        <span class="toolbar-label" aria-hidden="true">Task view</span><div class="toolbar" role="group" aria-label="Task view">${button('view-table', 'Table', false, `aria-pressed="${s.mode === 'table'}"`)}${button('view-board', 'Board', false, `aria-pressed="${s.mode === 'board'}"`)}</div>
       </div>
-      <div class="filters"><label>Assignment<select id="assignment"><option value="all">All assignees</option><option value="mine" ${s.filters.assignment === 'mine' ? 'selected' : ''}>Assigned to me</option>${s.board.members.map((m, i) => `<option value="${e(m.id)}" ${s.filters.assignment === m.id ? 'selected' : ''}>${e(m.displayName)} · member ${i + 1}</option>`).join('')}</select></label><label>Status<select id="status"><option value="active" ${s.filters.status === 'active' ? 'selected' : ''}>All except Cancelled</option><option value="all" ${s.filters.status === 'all' ? 'selected' : ''}>All including Cancelled</option>${[...statuses, 'CANCELLED'].map(st => `<option value="${st}" ${s.filters.status === st ? 'selected' : ''}>${labels[st]}</option>`).join('')}</select></label><label class="search">Search<input type="search" id="search" value="${e(s.filters.search)}" placeholder="Title, description or assignee"></label>${button('clear-filters', 'Clear filters')}</div>
+      <div class="filters"><label>Assignee<select id="assignment"><option value="all">All assignees</option><option value="mine" ${s.filters.assignment === 'mine' ? 'selected' : ''}>Assigned to me</option>${s.board.members.map((m, i) => `<option value="${e(m.id)}" ${s.filters.assignment === m.id ? 'selected' : ''}>${e(m.displayName)} · member ${i + 1}</option>`).join('')}</select></label><label>Status<select id="status"><option value="active" ${s.filters.status === 'active' ? 'selected' : ''}>All except Cancelled</option><option value="all" ${s.filters.status === 'all' ? 'selected' : ''}>All including Cancelled</option>${[...statuses, 'CANCELLED'].map(st => `<option value="${st}" ${s.filters.status === st ? 'selected' : ''}>${labels[st]}</option>`).join('')}</select></label><label class="search">Search<input type="search" id="search" value="${e(s.filters.search)}" placeholder="Title, description or assignee"></label>${button('clear-filters', 'Clear filters')}</div>
     </div>
+    ${pending.length ? `<button type="button" id="pending" class="pending-banner">${icon('clock')}<strong>${pending.length} ${pending.length === 1 ? 'assignment' : 'assignments'} awaiting your acceptance</strong><span>Review assignments ${icon('arrow')}</span></button>` : ''}
     <p id="task-count" class="note">${tasks.length} / ${s.board.totalTasks} tasks</p>
     ${!tasks.length ? `<div class="empty">${s.board.totalTasks ? 'No tasks match these filters.' : 'No tasks yet. The leader can create the first task.'}</div>` : s.mode === 'table' ? taskTable(s, tasks) : board(s, tasks)}`;
 }
@@ -497,10 +510,30 @@ function summaryPage(s, key, canWrite) {
   if (s.form === 'settings') content += form(s, canWrite);
   return content;
 }
+// Decorative sign-in illustration: inline, same-origin, no external assets.
+const authArt = `<svg viewBox="0 0 640 900" preserveAspectRatio="xMidYMid slice" focusable="false">
+  <defs><pattern id="art-dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#8d79d6" opacity=".45"/></pattern></defs>
+  <rect width="640" height="900" fill="url(#art-dots)"/>
+  <g fill="none" stroke="#a796e0" stroke-width="1.4" opacity=".9">
+    <path d="M20 250C180 150 460 150 620 280"/><path d="M20 285C180 190 460 190 620 315"/><path d="M20 320C180 235 460 235 620 345"/>
+    <path d="M20 640C180 740 460 740 620 620"/><path d="M20 675C180 775 460 775 620 655"/><path d="M20 710C180 810 460 810 620 690"/>
+    <circle cx="320" cy="450" r="215"/><circle cx="320" cy="450" r="245" stroke-dasharray="3 6"/>
+  </g>
+  <g stroke="#5538bf" stroke-width="3">
+    <circle cx="228" cy="455" r="86" fill="#f8f5ff"/><circle cx="412" cy="455" r="86" fill="#f8f5ff"/>
+    <path d="M140 330C160 250 280 250 320 335C360 250 480 250 500 330" fill="none"/>
+  </g>
+  <circle cx="232" cy="460" r="42" fill="#6a4cc4"/><circle cx="416" cy="460" r="42" fill="#6a4cc4"/>
+  <circle cx="246" cy="446" r="12" fill="#fff"/><circle cx="430" cy="446" r="12" fill="#fff"/>
+  <path d="M302 505h36l-18 26z" fill="#5538bf"/>
+  <g fill="#8d79d6"><path d="M560 215l8 22 22 8-22 8-8 22-8-22-22-8 22-8z"/><path d="M110 610l6 16 16 6-16 6-6 16-6-16-16-6 16-6z"/><circle cx="590" cy="285" r="5"/><circle cx="130" cy="560" r="5"/></g>
+</svg>`;
 export function markup(s) {
   const canWrite = !!s.user && !s.stale && !s.busy && !s.loading && !s.revalidating && !s.unknown;
-  const side = `<aside class="sidebar"><div class="brand-group"><img class="brand-mark" src="/brand-logo.png" width="80" height="80" alt=""><p class="brand">Owlibi</p>${s.board ? navigationButton('workspace-menu', 'Menu', 'menu', false, `aria-expanded="${s.navOpen}" aria-controls="project-navigation"`) : ''}</div>${s.user ? `<div class="project-context">${navigationButton('projects', 'Projects', 'projects')}${s.board ? `<p class="project-name">${e(s.board.project.name)}</p><p id="role-context">${s.board.project.role === 'LEADER' ? 'Leader' : 'Member'}</p>` : ''}</div>${s.board ? `<nav id="project-navigation" aria-label="Project navigation"${s.navOpen ? ' class="is-open"' : ''}>${['tasks', 'workload', 'completed', 'activity', 'members', 'settings'].map(view => navigationButton(`nav-${view}`, navigationLabel(view), view, false, s.page === view ? 'aria-current="page"' : '')).join('')}</nav>` : ''}<div class="account-block"><span class="account-avatar" aria-hidden="true">${e(initial(s.user.displayName))}</span><span id="account-context">${e(s.user.displayName)}</span></div>${navigationButton('logout', 'Sign out', 'logout', s.busy)}` : ''}<div class="theme-controls">${button('theme-light', 'Light', false, `aria-pressed="${s.theme === 'light'}"`)}${button('theme-dark', 'Dark', false, `aria-pressed="${s.theme === 'dark'}"`)}</div></aside>`;
-  const chrome = `<header class="app-header" aria-label="Workspace context"><div class="workspace-location">${s.user && s.board ? `<span class="breadcrumb-project">${e(s.board.project.name)}</span><span class="breadcrumb-separator" aria-hidden="true">/</span>` : ''}<span>${s.user ? e(navigationLabel(s.page)) : s.form === 'register' ? 'Create account' : 'Sign in'}</span></div><span class="workspace-mode">${s.user && s.board ? s.board.project.role === 'LEADER' ? 'Leader workspace' : 'Member workspace' : 'Project workspace'}</span></header>`;
+  const side = `<aside class="sidebar"><div class="brand-group"><img class="brand-mark" src="/brand-logo.png" width="80" height="80" alt=""><p class="brand">Owlibi</p>${s.board ? navigationButton('workspace-menu', 'Menu', 'menu', false, `aria-expanded="${s.navOpen}" aria-controls="project-navigation"`) : ''}</div>${s.user ? `<div class="project-context">${navigationButton('projects', 'All projects', 'projects', false, s.page === 'projects' ? 'aria-current="page"' : '')}${s.board ? `<p class="project-name">${e(s.board.project.name)}</p>` : ''}</div>${s.board ? `<nav id="project-navigation" aria-label="Project navigation"${s.navOpen ? ' class="is-open"' : ''}>${['tasks', 'workload', 'completed', 'activity', 'members', 'settings'].map(view => navigationButton(`nav-${view}`, navigationLabel(view), view, false, s.page === view ? 'aria-current="page"' : '')).join('')}</nav>` : ''}<div class="account-block"><span class="account-avatar" aria-hidden="true">${e(initial(s.user.displayName))}</span><span class="account-text"><span id="account-context">${e(s.user.displayName)}</span><span id="role-context">${s.board && s.page !== 'projects' ? (s.board.project.role === 'LEADER' ? 'Project leader' : 'Project member') : 'Your account'}</span></span></div>${navigationButton('logout', 'Sign out', 'logout', s.busy)}` : ''}<div class="theme-controls">${button('theme-light', 'Light', false, `aria-pressed="${s.theme === 'light'}"`)}${button('theme-dark', 'Dark', false, `aria-pressed="${s.theme === 'dark'}"`)}</div></aside>`;
+  const place = !s.user ? '' : s.page === 'projects' && s.form === 'project' ? '<a class="breadcrumb-link" aria-hidden="true">Projects</a><span class="breadcrumb-separator" aria-hidden="true">›</span><span class="breadcrumb-current">Create project</span>' : s.page === 'projects' || !s.board ? '<span class="breadcrumb-current">Projects</span>' : `<span class="breadcrumb-link" aria-hidden="true">Projects</span><span class="breadcrumb-separator" aria-hidden="true">›</span><span class="breadcrumb-current breadcrumb-project">${e(s.board.project.name)}</span>`;
+  const status = s.user ? `<div class="header-status"><p id="connection-state" class="${s.stale || s.logoutUnconfirmed ? 'is-stale' : ''}">${e(connectionState(s))}</p><button type="button" id="refresh" class="icon-button" aria-label="Refresh" ${s.busy || s.loading || s.revalidating ? 'disabled' : ''}>${icon('refresh')}</button></div>` : '';
+  const chrome = `<header class="app-header" aria-label="Workspace context"><div class="workspace-location">${place}</div><span class="workspace-mode sr-only">${s.user && s.board ? s.board.project.role === 'LEADER' ? 'Leader workspace' : 'Member workspace' : 'Project workspace'}</span>${status}</header>`;
   let content = '', detail = '';
   if (!s.user) content = s.revalidating ? '<h1 id="page-title" tabindex="-1">Checking session…</h1>' : form(s, true);
   else if (s.page === 'projects') {
@@ -510,7 +543,7 @@ export function markup(s) {
     content = s.page === 'tasks' ? tasksPage(s, canWrite) : s.page === 'members' ? members(s, canWrite) : s.page === 'settings' ? settingsPage(s, canWrite) : s.page === 'workload' ? summaryPage(s, 'workload', canWrite) : s.page === 'completed' ? summaryPage(s, 'contribution', canWrite) : activity(s);
     if (s.page === 'tasks') detail = inspector(s, visibleTasks(s.board.tasks, s.filters, s.user.id), canWrite);
   }
-  return `${side}${chrome}<main class="workspace" id="main-content" tabindex="-1"><div class="connection"><p id="feedback"${['Signed in.', 'Session revalidated.'].includes(s.notice) ? ' class="sr-only"' : isActionConfirmation(s.notice) ? ' class="feedback-success"' : ''}>${e(s.notice)}</p><p id="connection-state">${e(connectionState(s))}</p>${s.user || s.logoutUnconfirmed ? button('refresh', s.logoutUnconfirmed ? 'Recheck server session' : 'Refresh', s.busy || s.loading || s.revalidating, 'class="quiet-button"') : ''}${s.unknown ? `<p>Write outcome unknown. Inspect the authoritative view before deliberate resubmission. ${s.unknown === 'invitation' ? 'A lost invitation token cannot be recovered; choose deliberately whether to create another.' : ''}</p>${button('inspect-unknown', 'Inspect authoritative state', s.loading)}` : ''}</div>${content}</main>${detail ? `<aside class="inspector" aria-label="Task inspector">${detail}</aside>` : ''}`;
+  return `${side}${chrome}<main class="workspace" id="main-content" tabindex="-1"><div class="connection"><p id="feedback"${['Signed in.', 'Session revalidated.'].includes(s.notice) ? ' class="sr-only"' : isActionConfirmation(s.notice) ? ' class="feedback-success"' : ''}>${e(s.notice)}</p>${!s.user && s.logoutUnconfirmed ? `<p id="connection-state">${e(connectionState(s))}</p>${button('refresh', 'Recheck server session', s.busy || s.loading || s.revalidating, 'class="quiet-button"')}` : ''}${s.unknown ? `<p>Write outcome unknown. Inspect the authoritative view before deliberate resubmission. ${s.unknown === 'invitation' ? 'A lost invitation token cannot be recovered; choose deliberately whether to create another.' : ''}</p>${button('inspect-unknown', 'Inspect authoritative state', s.loading)}` : ''}</div>${content}</main>${detail ? `<aside class="inspector" aria-label="Task inspector">${detail}</aside>` : ''}${!s.user ? `<aside class="auth-art" aria-hidden="true">${authArt}</aside>` : ''}`;
 }
 export function capturePosition(root) {
   return { document: [window.scrollX, window.scrollY], regions: [...root.querySelectorAll('.workspace,.inspector,.table-scroll,.board-scroll')].map(el => [el.className, el.scrollTop, el.scrollLeft]) };
