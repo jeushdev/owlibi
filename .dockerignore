@@ -18,3 +18,4 @@
 !hosting/
 !hosting/Dockerfile.render
 !hosting/start-render.sh
+!hosting/maven-settings.xml
