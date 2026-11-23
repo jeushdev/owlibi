@@ -5,16 +5,18 @@ COPY web-client/src/ src/
 COPY web-client/scripts/build.mjs scripts/build.mjs
 RUN node scripts/build.mjs
 
-FROM eclipse-temurin:21-jdk-jammy@sha256:4b1a74fbffbe6b4e7b6f0171a472478282fb463790a51edf10e465d578f22b69 AS build
-# The wrapper's checksum pins the ZIP; without unzip it falls back to a different archive.
-RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
+# Maven is preinstalled in this image (same 3.9.16 the wrapper pins), so the build never downloads
+# Maven itself. That download was what failed on Render's build servers.
+FROM maven:3.9.16-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320 AS build
 WORKDIR /build
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
+COPY pom.xml ./
 COPY server-api/pom.xml server-api/pom.xml
 COPY server-api/src/main/ server-api/src/main/
 COPY --from=frontend /build/server-api/target/generated-resources/ server-api/target/generated-resources/
-RUN chmod +x mvnw && ./mvnw -B -DskipTests package
+# Dependencies come from Google's mirror of Maven Central, because Render could not reach
+# repo.maven.apache.org. Same files; Maven still checks their checksums.
+COPY hosting/maven-settings.xml hosting/maven-settings.xml
+RUN mvn -B -s hosting/maven-settings.xml -DskipTests package
 
 FROM eclipse-temurin:21-jre-jammy@sha256:1eac8b8fee11ca7d6725a48bc5d41992ed1561504ebae25490d2d062847e8269
 RUN groupadd --gid 10001 owlibi && useradd --uid 10001 --gid 10001 --no-create-home owlibi \
