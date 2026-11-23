@@ -122,28 +122,22 @@ public class TaskService {
     }
     @Transactional public Task transition(UUID actor,UUID project,UUID task,String action,Long versionValue,String reasonValue) {
         String role=requireMember(actor,project); Stored stored=load(project,task,true); var assignees=assigned(task);
-        if (action==null || !Set.of("START","SUBMIT_REVIEW","APPROVE","RETURN","CANCEL","REOPEN").contains(action)) throw ApiFailure.validation("action");
+        // Each action is a TaskTransition subclass; the checks below ask it questions instead of
+        // comparing action names, so Java picks the right answer for the actual transition at runtime.
+        TaskTransition move=TaskTransition.named(action);
+        if (move==null) throw ApiFailure.validation("action");
         boolean leader=role.equals("LEADER");
         boolean worker=assignees.stream().anyMatch(a -> a.user().equals(actor));
-        if (!leader && (!Set.of("START","SUBMIT_REVIEW").contains(action) || !worker)) throw forbidden();
+        if (!leader && (!move.openToAssignees() || !worker)) throw forbidden();
         long version=TaskFields.version(versionValue,"version",0);
         if (version!=stored.version()) throw new ApiFailure(409,"STALE_VERSION","Reload the current task");
-        boolean needsReason=Set.of("RETURN","CANCEL","REOPEN").contains(action);
-        String reason=Fields.text(reasonValue,"reason",1000,true,needsReason); if (reason.isEmpty()) reason=null;
-        String next=switch (action) {
-            case "START" -> { if (!stored.status().equals("TODO")) throw state(); yield "IN_PROGRESS"; }
-            case "SUBMIT_REVIEW" -> { if (!stored.status().equals("IN_PROGRESS")) throw state(); yield "REVIEW"; }
-            case "APPROVE" -> { if (!stored.status().equals("REVIEW")) throw state(); yield "DONE"; }
-            case "RETURN" -> { if (!stored.status().equals("REVIEW")) throw state(); yield "IN_PROGRESS"; }
-            case "REOPEN" -> { if (!stored.status().equals("DONE")) throw state(); yield "IN_PROGRESS"; }
-            case "CANCEL" -> { if (!Set.of("TODO","IN_PROGRESS","REVIEW").contains(stored.status())) throw state(); yield "CANCELLED"; }
-            default -> throw ApiFailure.validation("action");
-        };
-        if (Set.of("START","SUBMIT_REVIEW","APPROVE","REOPEN").contains(action) &&
+        String reason=Fields.text(reasonValue,"reason",1000,true,move.requiresReason()); if (reason.isEmpty()) reason=null;
+        String next=move.next(stored.status());
+        if (next==null) throw state();
+        if (move.requiresAcceptance() &&
             (assignees.isEmpty() || assignees.stream().anyMatch(a -> !Objects.equals(a.agreement(),stored.agreement()))))
             throw new ApiFailure(422,"ACCEPTANCE_REQUIRED","Every current assignee must accept");
-        Instant now=now(); Instant first=stored.firstStart();
-        if (action.equals("START") && first==null) first=now;
+        Instant now=now(); Instant first=move.firstStart(stored.firstStart(),now);
         jdbc.update("UPDATE tasks SET status=?,version=version+1,updated_at_utc=?,first_started_at_utc=? WHERE id=?",
             next,Timestamp.from(now),first==null?null:Timestamp.from(first),task);
         var before=new LinkedHashMap<String,Object>(); before.put("status",stored.status()); before.put("version",version); before.put("firstStartedAtUtc",stored.firstStart()==null?null:stored.firstStart().toString());
