@@ -225,7 +225,7 @@ public class ReportController {
     private static boolean isTimeout(Throwable candidate) {
         return candidate instanceof SocketTimeoutException
             || candidate instanceof TransactionTimedOutException
-            || (candidate instanceof SQLException sql && TIMEOUT_SQL_STATES.contains(sql.getSQLState()));
+            || (candidate instanceof SQLException sql && sql.getSQLState() != null && TIMEOUT_SQL_STATES.contains(sql.getSQLState()));
     }
 
     /**
