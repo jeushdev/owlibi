@@ -18,7 +18,7 @@ fi
 
 # One small JVM finishes migrations before the web service opens its port.
 java -Xms32m -Xmx128m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 \
-    -Dloader.main=dev.owlibi.reference.hosting.MigrationMain \
+    -Dloader.main=dev.owlibi.hosting.MigrationMain \
     -cp /opt/owlibi/app.jar org.springframework.boot.loader.launch.PropertiesLauncher
 unset OWLIBI_MIGRATION_URL OWLIBI_MIGRATION_USER OWLIBI_MIGRATION_PASSWORD
 unset SPRING_FLYWAY_URL SPRING_FLYWAY_USER SPRING_FLYWAY_PASSWORD
