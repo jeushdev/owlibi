@@ -109,7 +109,7 @@ The problem analysis, use cases, and the design decisions we made (with the opti
 
 ## ‧₊˚ ┊ Class Diagram
 
-A simplified view of the main classes. Hollow triangles show inheritance, dashed lines with hollow triangles show an interface being implemented, and plain arrows show which class uses which.
+A simplified view of the main classes. Hollow triangles show inheritance, dashed lines with hollow triangles show an interface being implemented, and plain arrows show which class uses which. The full diagrams, with fields, methods and visibility, are in [docs/UML.md](docs/UML.md).
 
 ```mermaid
 classDiagram
