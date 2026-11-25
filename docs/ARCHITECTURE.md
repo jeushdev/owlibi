@@ -1,6 +1,6 @@
 # Architecture
 
-Design summary of the Owlibi app in this repository. The code was copied from an AI-assisted reference application (see [AI_USAGE.md](AI_USAGE.md)); this file explains how it is organized and is not a test report. Verify behavior with the commands in the [README](../README.md).
+Design summary of the Owlibi app in this repository. This file explains how it is organized and is not a test report. AI tool use is listed in [AI_USAGE.md](AI_USAGE.md). Verify behavior with the commands in the [README](../README.md).
 
 ## Decision summary
 

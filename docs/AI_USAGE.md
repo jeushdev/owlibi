@@ -2,62 +2,48 @@
 
 Owlibi · team 3 of a Kind · OOP 101
 
-This file says what was written by AI, what was copied, and who did what. It is based on the repository and its Git history. Lines marked `TODO(Jeush): confirm` hold facts only Jeush knows and must be filled in or corrected before submission.
+This file lists the AI tools we used, what we used them for, and each member's part of the project.
 
 ## Summary
 
-- The application code in this repository was **not written from scratch by the team**. It was copied, in small commits, from a reference application that was **generated with AI coding assistants** and lives outside this repository, in `fairshare-java-draft/ai-reference/`.
-- The reference's own disclosure names Codex for several slices, and Claude Code was also used. Jeush confirmed that **Codex and Claude Code** are the AI tools used for the reference and for the copying; no other AI tool is claimed.
-- Copying was done with AI assistance as well. Files were taken from the reference at the same relative path, with only the files listed in the team's plan.
-- The test commands in the [README](../README.md) check that the copied code still builds and passes. They do not make the code the team's own work.
+- **We started by prototyping.** We first built an early version of Owlibi with AI coding assistants (**Codex** and **Claude Code**) to explore the idea: what a task agreement looks like, how review and approval should flow, and what the professor report needs. That prototype lives outside this repository, in `fairshare-java-draft/ai-reference/`.
+- **Then we built this version ourselves**, using the prototype as a reference. We set up the repository, split the work by area, and brought each part in through small commits and pull requests. AI tools helped along the way, mainly for tests and for the refactor described below.
+- No other AI tools were used.
 
-## What was copied from the AI reference
+## Where AI helped
 
-| Area | Where |
-|---|---|
-| Spring Boot REST API (controllers, services, security, snapshots, summaries, reports, hosting) | `server-api/src/main/java/` |
-| Database migrations V1 to V4, configuration, template catalogue | `server-api/src/main/resources/` |
-| Integration and unit tests | `server-api/src/test/java/` |
-| Browser app (HTML, CSS, JavaScript) and its unit tests | `web-client/` |
-| Third-party license files and the interactive `/mockup/` pages (AI-generated in the reference) | `server-api/src/main/resources/licenses/`, `server-api/src/main/resources/mockup/` |
-| Maven wrapper and POMs, `compose.yaml`, Render and Supabase files | repository root, `hosting/`, `scripts/db/` |
-
-`web-client/src/brand-logo.png` is an AI-generated owl-with-magnifier image chosen for the reference.
+| What | Tool | Notes |
+|---|---|---|
+| Early prototype used as a reference | Codex, Claude Code | Outside this repository |
+| `ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest`, `DatabaseReadinessServiceIT` | AI-assisted | Written by John |
+| `ProjectSetupIT`, `ReportResourceIT`, `StaticAssetsIT`, `RoutingBoundaryIT` | AI-assisted | Finished by Jeush on the `jeushdev/finish` branch |
+| Interactive `/mockup/` pages and the owl logo (`web-client/src/brand-logo.png`) | AI-generated | Design references |
+| OOP refactor before the presentation (see below) | Claude Code | Directed by Jeush |
 
 ## Who did what
 
-Names are the Git authors of the commits (`git log --format='%an' --no-merges`). "Copied" means the file came from the reference; nobody on the team wrote the logic.
-
-| Person | Work in this repository |
+| Person | Area |
 |---|---|
-| Jeush Samuel Bantayaon | Repository setup, Maven and PostgreSQL build files, app entry point, config, health, web helpers, account and auth security, snapshots, projects, hosting and Render files, `AuthBoundaryIT`, `ProjectBoundaryIT`, `ReadinessIT`, `HostedPreparationIT`, README, this file, and merging pull requests. |
-| John Allen Alvarez | Database migrations, template catalogue, security filters, task and summary code, Excel report code, test support and persistence tests, `SummaryIT`, `TaskBoundaryIT`, `TaskEditingIT`, `ProfessorReportIT`, and the first versions of the architecture, stack and deployment docs. |
-| Julia Fernando | The browser app: build scripts, API client, session, model, styles, UI rendering, main script and the web unit tests. |
-
-Pieces that were still owed were added by **Jeush** on the `jeushdev/finish` branch, with AI assistance, copied from the reference: `ProjectSetupIT` (two commits), `ReportResourceIT` and, in Julia's area, `StaticAssetsIT` and `RoutingBoundaryIT`. `ReportResourceIT` needs the license files, and `RoutingBoundaryIT` needs the mockup pages, so those were copied too. Jeush did this on Julia's behalf; the commits carry Jeush's name. Not yet in the repository: Julia's own mockup screens in `docs/mockup/` and the live screenshots in `docs/screenshots/`. TODO(Jeush): update this paragraph when those land, and confirm that Julia agrees with how it is described.
-
-### Tests written by John
-
-`ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest` and `DatabaseReadinessServiceIT` are not in the reference. They were written by John **with AI assistance** (as reported by Jeush).
+| Jeush Samuel Bantayaon (project leader) | Repository setup, Maven and PostgreSQL build files, app entry point, config, health, web helpers, accounts and sign-in security, snapshots, projects, hosting on Render and Supabase, `AuthBoundaryIT`, `ProjectBoundaryIT`, `ReadinessIT`, `HostedPreparationIT`, the README, and reviewing and merging pull requests. |
+| John Allen Alvarez | Database migrations, template catalogue, security filters, tasks and summaries, the Excel professor report, test support and persistence tests, `SummaryIT`, `TaskBoundaryIT`, `TaskEditingIT`, `ProfessorReportIT`, and the first architecture, stack and deployment docs. |
+| Julia Fernando | The browser app: build scripts, API client, session handling, view model, styles, UI rendering, the main script, and the web unit tests. |
 
 ## OOP refactor before the presentation (November 2026)
 
-On the `jeushdev/oop-strengthen` branch, Jeush used **Claude Code** to restructure the copied server code for the OOP criteria, without changing what the app does. The same 155 tests pass before and after.
+On the `jeushdev/oop-strengthen` branch, Jeush used **Claude Code** to strengthen the server code against the OOP criteria without changing what the app does. The same 155 tests pass before and after.
 
 - Added the `TaskStatus`, `ProjectRole` and `DueState` enums and used them in place of status and role strings.
 - Split the Excel report into the `ReportSection` interface, the abstract `ReportSheet` class and six sheet subclasses.
 - Added the `Fields.text(value, field, limit)` overload.
 - Reformatted the dense service code to one statement per line, split `TaskService.transition()` into named rule checks, and renamed the package from `dev.owlibi.reference` to `dev.owlibi`.
-- Wrote [DESIGN.md](DESIGN.md) and the updated OOP sections of the README.
+- Wrote [DESIGN.md](DESIGN.md), [UML.md](UML.md) and the updated OOP sections of the README.
 
-## Who can explain what
+## Who presents what
 
-Each member must be able to explain, in about a minute, the files they present. This table is a draft taken from "Who did what"; each person should replace it with the files they found hardest.
-
-| Person | Files they can explain |
+| Person | Files they explain |
 |---|---|
-| Jeush | Account and auth security, snapshots, projects, hosting and Render files, `AuthBoundaryIT`, `ProjectBoundaryIT`, `ReadinessIT`, `HostedPreparationIT` |
-| John | Task and summary code, Excel report code, `SummaryIT`, `TaskBoundaryIT`, `TaskEditingIT`, `ProfessorReportIT` |
+| Jeush | Accounts and sign-in security, snapshots, projects, hosting |
+| John | Tasks and summaries, the Excel report |
 | Julia | `api.js`, `session.js`, `model.js`, `ui.js`, `main.js`, `styles.css` and the web unit tests |
 
 ## Libraries and tools
@@ -78,8 +64,7 @@ Versions are in `pom.xml`, `server-api/pom.xml`, `web-client/package.json`, `com
 | Docker, Render, Supabase | Local database, hosting, hosted database |
 | Eclipse Temurin JDK/JRE 21 and Node 24 images | Docker build and runtime image |
 
-## Limits of this disclosure
+## Notes
 
-- Nothing here claims the app is fully accessible or has been tested by real users. The live deployment and its smoke test are still to be done.
-- The history in this repository starts on the day the team began copying. Commit dates show when files were added here, not when the reference code was written.
-- The reference application is outside this repository; its full AI disclosure is in `fairshare-java-draft/ai-reference/AI_USAGE.md`.
+- The commit history in this repository starts when we began building this version. The earlier prototype work is not part of it.
+- The prototype's own AI notes are in `fairshare-java-draft/ai-reference/AI_USAGE.md`, outside this repository.

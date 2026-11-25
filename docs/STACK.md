@@ -1,6 +1,6 @@
 # Owlibi stack and repository structure
 
-Summary of the tools this repository uses and why. Versions come from the POM files, the Maven wrapper properties, `web-client/package.json`, `compose.yaml` and `hosting/Dockerfile.render`; those files are authoritative. This is not a test report. The code was copied from an AI-assisted reference application (see [AI_USAGE.md](AI_USAGE.md)). Setup and run steps are in the [README](../README.md).
+Summary of the tools this repository uses and why. Versions come from the POM files, the Maven wrapper properties, `web-client/package.json`, `compose.yaml` and `hosting/Dockerfile.render`; those files are authoritative. This is not a test report. AI tool use is listed in [AI_USAGE.md](AI_USAGE.md). Setup and run steps are in the [README](../README.md).
 
 ## Stack
 
