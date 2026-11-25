@@ -292,17 +292,17 @@ If Owlibi ever settles a group-chat debate for you, it has done its job. Hoot ho
   <tr>
     <td><img src="docs/images/allen.jpg" width="96" height="96" alt="John Allen Alvarez"></td>
     <td><strong>John Allen P. Alvarez</strong><br><a href="https://github.com/jhnllnlvrz">@jhnllnlvrz</a></td>
-    <td>Member · Tasks, summaries, and Excel reports</td>
+    <td>Member · Database migrations, templates, tasks, summaries, Excel reports, and docs</td>
   </tr>
   <tr>
     <td><img src="docs/images/jeush.jpg" width="96" height="96" alt="Jeush Samuel Bantayaon"></td>
     <td><strong>Jeush Samuel L. Bantayaon</strong><br><a href="https://github.com/jeushdev">@jeushdev</a></td>
-    <td>Project leader · Repository setup, accounts, projects, and hosting</td>
+    <td>Project leader · Repository setup, auth and security, project API, snapshots, hosting and deployment, and merging every PR</td>
   </tr>
   <tr>
     <td><img src="docs/images/julia.jpg" width="96" height="96" alt="Julia Fernando"></td>
     <td><strong>Julia M. Fernando</strong><br><a href="https://github.com/molii-julia">@molii-julia</a></td>
-    <td>Member · Browser client and frontend tests</td>
+    <td>Member · Mockup design, the whole browser app (HTML, CSS, JS), web unit tests, and two Java web tests</td>
   </tr>
 </table>
 

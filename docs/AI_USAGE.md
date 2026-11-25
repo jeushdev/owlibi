@@ -16,17 +16,17 @@ This file lists the AI tools we used, what we used them for, and each member's p
 |---|---|---|
 | Early prototype used as a reference | Codex, Claude Code | Outside this repository |
 | `ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest`, `DatabaseReadinessServiceIT` | AI-assisted | Written by John |
-| `ProjectSetupIT`, `ReportResourceIT`, `StaticAssetsIT`, `RoutingBoundaryIT` | AI-assisted | Finished by Jeush on the `jeushdev/finish` branch |
-| Interactive `/mockup/` pages and the owl logo (`web-client/src/brand-logo.png`) | AI-generated | Design references |
+| `ProjectSetupIT`, `ReportResourceIT` | AI-assisted | Finished by Jeush on the `jeushdev/finish` branch |
+| Owl logo (`web-client/src/brand-logo.png`) | AI-generated | |
 | OOP refactor before the presentation (see below) | Claude Code | Directed by Jeush |
 
 ## Who did what
 
 | Person | Area |
 |---|---|
-| Jeush Samuel Bantayaon (project leader) | Repository setup, Maven and PostgreSQL build files, app entry point, config, health, web helpers, accounts and sign-in security, snapshots, projects, hosting on Render and Supabase, `AuthBoundaryIT`, `ProjectBoundaryIT`, `ReadinessIT`, `HostedPreparationIT`, the README, and reviewing and merging pull requests. |
-| John Allen Alvarez | Database migrations, template catalogue, security filters, tasks and summaries, the Excel professor report, test support and persistence tests, `SummaryIT`, `TaskBoundaryIT`, `TaskEditingIT`, `ProfessorReportIT`, and the first architecture, stack and deployment docs. |
-| Julia Fernando | The browser app: build scripts, API client, session handling, view model, styles, UI rendering, the main script, and the web unit tests. |
+| Jeush Samuel Bantayaon (project leader) | Repository setup, auth and security, project API, snapshots, hosting and deployment, and merging every pull request |
+| John Allen Alvarez | Database migrations, templates, tasks, summaries, Excel reports, and docs |
+| Julia Fernando | Mockup design, the whole browser app (HTML, CSS, JavaScript), the web unit tests, and two Java web tests (`StaticAssetsIT`, `RoutingBoundaryIT`) |
 
 ## OOP refactor before the presentation (November 2026)
 
@@ -42,9 +42,9 @@ On the `jeushdev/oop-strengthen` branch, Jeush used **Claude Code** to strengthe
 
 | Person | Files they explain |
 |---|---|
-| Jeush | Accounts and sign-in security, snapshots, projects, hosting |
-| John | Tasks and summaries, the Excel report |
-| Julia | `api.js`, `session.js`, `model.js`, `ui.js`, `main.js`, `styles.css` and the web unit tests |
+| Jeush | Auth and security, the project API, snapshots, hosting and deployment |
+| John | Migrations, templates, tasks, summaries, and the Excel report |
+| Julia | The mockups, the browser app (`api.js`, `session.js`, `model.js`, `ui.js`, `main.js`, `styles.css`), and the web tests |
 
 ## Libraries and tools
 
