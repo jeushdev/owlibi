@@ -1,6 +1,6 @@
 spring:
   application:
-    name: owlibi-reference
+    name: owlibi
   datasource:
     url: jdbc:postgresql://127.0.0.1:${OWLIBI_DB_PORT:55580}/owlibi?currentSchema=owlibi&connectTimeout=3&socketTimeout=5
     username: owlibi_runtime

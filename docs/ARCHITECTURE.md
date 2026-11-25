@@ -1,6 +1,6 @@
 # Architecture
 
-Design summary of the Owlibi app in this repository. The code was copied from an AI-assisted reference application (see [AI_USAGE.md](AI_USAGE.md)); this file explains how it is organized and is not a test report. Verify behavior with the commands in the [README](../README.md).
+Design summary of the Owlibi app in this repository. This file explains how it is organized and is not a test report. AI tool use is listed in [AI_USAGE.md](AI_USAGE.md). Verify behavior with the commands in the [README](../README.md).
 
 ## Decision summary
 
@@ -48,7 +48,7 @@ Keep persistence entities, API DTOs and browser presentation models distinct. Ja
 - Enforce task/terms/terminal/first-start rules and optimistic versions, generating safe actor/server-time events in the same transaction.
 - Enforce human-inactivity expiry independently of polling using the specified browser activity protocol; tab close is not authoritative logout.
 - Compute decimal completed points/workload from coherent database state and project-local dates.
-- Authorize four-sheet professor XLSX export from one consistent snapshot with literal user text and bounded resources.
+- Authorize six-sheet professor XLSX export from one consistent snapshot with literal user text and bounded resources.
 - Return stable safe errors; protect cookie/CSRF flows and mark protected responses non-cacheable through every proxy layer.
 
 ### PostgreSQL

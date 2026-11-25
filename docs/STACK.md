@@ -1,6 +1,6 @@
 # Owlibi stack and repository structure
 
-Summary of the tools this repository uses and why. Versions come from the POM files, the Maven wrapper properties, `web-client/package.json`, `compose.yaml` and `hosting/Dockerfile.render`; those files are authoritative. This is not a test report. The code was copied from an AI-assisted reference application (see [AI_USAGE.md](AI_USAGE.md)). Setup and run steps are in the [README](../README.md).
+Summary of the tools this repository uses and why. Versions come from the POM files, the Maven wrapper properties, `web-client/package.json`, `compose.yaml` and `hosting/Dockerfile.render`; those files are authoritative. This is not a test report. AI tool use is listed in [AI_USAGE.md](AI_USAGE.md). Setup and run steps are in the [README](../README.md).
 
 ## Stack
 
@@ -12,7 +12,7 @@ Summary of the tools this repository uses and why. Versions come from the POM fi
 | Persistence | Spring JDBC with parameterized SQL, Flyway migrations (`flyway-database-postgresql`), PostgreSQL JDBC driver | Plain SQL keeps domain rules visible; no ORM layer. |
 | Database | PostgreSQL 17.11 (Docker image pinned by digest in `compose.yaml`) | Local development and tests; Supabase Free PostgreSQL when hosted. |
 | JSON | Jackson 3 BOM 3.1.7 | Overrides the version Boot manages. |
-| Workbook | Apache POI `poi-ooxml` 5.5.1, Commons IO 2.21.0 | Builds the four-sheet professor `.xlsx` report. |
+| Workbook | Apache POI `poi-ooxml` 5.5.1, Commons IO 2.21.0 | Builds the six-sheet professor `.xlsx` report. |
 | Web client | Plain HTML, CSS and JavaScript ES modules in `web-client/src`, assembled by `node web-client/scripts/build.mjs` (Node 24+, no `npm install`) | No framework; Spring serves the built files. |
 | Build | Maven 3.9.16 through the Maven Wrapper (3.3.4) | `./mvnw` downloads Maven; no global install. |
 | Tests | JUnit and Spring Boot test (Boot BOM), Testcontainers PostgreSQL (needs Docker), Node's built-in `node:test` | Integration tests run against a real database. |
@@ -31,7 +31,7 @@ owlibi/
   hosting/               Render Dockerfile, start script, Supabase bootstrap SQL
   scripts/db/            database role bootstrap for local PostgreSQL
   server-api/            DTO/controller -> service -> SQL -> PostgreSQL
-    src/main/java/dev/owlibi/reference/<feature packages>
+    src/main/java/dev/owlibi/<feature packages>
     src/main/resources/  application*.yaml, db/migration, templates
     src/test/java/       unit and integration tests
   web-client/            browser API/CSRF adapter, view model, HTML/CSS
