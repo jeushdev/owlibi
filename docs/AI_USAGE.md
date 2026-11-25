@@ -16,7 +16,7 @@ This file lists the AI tools we used, what we used them for, and each member's p
 |---|---|---|
 | Early prototype used as a reference | Codex, Claude Code | Outside this repository |
 | `ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest`, `DatabaseReadinessServiceIT` | AI-assisted | Written by John |
-| `ProjectSetupIT`, `ReportResourceIT` | AI-assisted | Finished by Jeush on the `jeushdev/finish` branch |
+| `ProjectSetupIT`, `ReportResourceIT` | AI-assisted | Jeush started and finished them on the `jeushdev/finish` branch; AI wrote the test code |
 | Owl logo (`web-client/src/brand-logo.png`) | AI-generated | |
 | OOP refactor before the presentation (see below) | Claude Code | Directed by Jeush |
 
@@ -26,7 +26,7 @@ This file lists the AI tools we used, what we used them for, and each member's p
 |---|---|
 | Jeush Samuel Bantayaon (project leader) | Repository setup, auth and security, project API, snapshots, hosting and deployment, and merging every pull request |
 | John Allen Alvarez | Database migrations, templates, tasks, summaries, Excel reports, and docs |
-| Julia Fernando | Mockup design, the whole browser app (HTML, CSS, JavaScript), the web unit tests, and two Java web tests (`StaticAssetsIT`, `RoutingBoundaryIT`) |
+| Julia Fernando | Mockup design (done by hand), the whole browser app (HTML, CSS, JavaScript), the web unit tests, and two Java web tests (`StaticAssetsIT`, `RoutingBoundaryIT`) |
 
 ## OOP refactor before the presentation (November 2026)
 
