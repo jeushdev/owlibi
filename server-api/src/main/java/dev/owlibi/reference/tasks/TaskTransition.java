@@ -3,6 +3,7 @@ package dev.owlibi.reference.tasks;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -20,23 +21,23 @@ import java.util.stream.Collectors;
  */
 abstract sealed class TaskTransition {
     private final String action;
-    private final String target;
-    private final Set<String> sources;
+    private final TaskStatus target;
+    private final Set<TaskStatus> sources;
 
-    protected TaskTransition(String action, String target, Set<String> sources) {
+    protected TaskTransition(String action, TaskStatus target, Set<TaskStatus> sources) {
         this.action = action;
         this.target = target;
         this.sources = Set.copyOf(sources);
     }
 
-    /** The action name the browser sends, for example {@code "START"}. */
+    /** The action name the browser sends, for example {@code "START"}. It is also the activity event type. */
     final String action() {
         return action;
     }
 
-    /** The status after this transition, or {@code null} when the task is not in a status it starts from. */
-    final String next(String currentStatus) {
-        return sources.contains(currentStatus) ? target : null;
+    /** The status after this transition, or empty when the task is not in a status it starts from. */
+    final Optional<TaskStatus> next(TaskStatus currentStatus) {
+        return sources.contains(currentStatus) ? Optional.of(target) : Optional.empty();
     }
 
     /** Whether an assignee who is not the leader may request this transition. The leader may request any. */
@@ -58,15 +59,15 @@ abstract sealed class TaskTransition {
             .stream()
             .collect(Collectors.toUnmodifiableMap(TaskTransition::action, Function.identity()));
 
-    /** The transition for an action name, or {@code null} when the name is unknown. */
-    static TaskTransition named(String action) {
-        return action == null ? null : BY_ACTION.get(action);
+    /** The transition for an action name, or empty when the name is unknown. */
+    static Optional<TaskTransition> named(String action) {
+        return action == null ? Optional.empty() : Optional.ofNullable(BY_ACTION.get(action));
     }
 
     /** An assignee starts work on a task that is still to do. */
     static final class Start extends TaskTransition {
         Start() {
-            super("START", "IN_PROGRESS", Set.of("TODO"));
+            super("START", TaskStatus.IN_PROGRESS, Set.of(TaskStatus.TODO));
         }
 
         @Override boolean openToAssignees() { return true; }
@@ -83,7 +84,7 @@ abstract sealed class TaskTransition {
     /** An assignee hands finished work to the leader. */
     static final class SubmitReview extends TaskTransition {
         SubmitReview() {
-            super("SUBMIT_REVIEW", "REVIEW", Set.of("IN_PROGRESS"));
+            super("SUBMIT_REVIEW", TaskStatus.REVIEW, Set.of(TaskStatus.IN_PROGRESS));
         }
 
         @Override boolean openToAssignees() { return true; }
@@ -94,7 +95,7 @@ abstract sealed class TaskTransition {
     /** The leader approves reviewed work, so its points count. */
     static final class Approve extends TaskTransition {
         Approve() {
-            super("APPROVE", "DONE", Set.of("REVIEW"));
+            super("APPROVE", TaskStatus.DONE, Set.of(TaskStatus.REVIEW));
         }
 
         @Override boolean openToAssignees() { return false; }
@@ -105,7 +106,7 @@ abstract sealed class TaskTransition {
     /** The leader sends reviewed work back for another pass. */
     static final class Return extends TaskTransition {
         Return() {
-            super("RETURN", "IN_PROGRESS", Set.of("REVIEW"));
+            super("RETURN", TaskStatus.IN_PROGRESS, Set.of(TaskStatus.REVIEW));
         }
 
         @Override boolean openToAssignees() { return false; }
@@ -116,7 +117,7 @@ abstract sealed class TaskTransition {
     /** The leader reopens a finished task. */
     static final class Reopen extends TaskTransition {
         Reopen() {
-            super("REOPEN", "IN_PROGRESS", Set.of("DONE"));
+            super("REOPEN", TaskStatus.IN_PROGRESS, Set.of(TaskStatus.DONE));
         }
 
         @Override boolean openToAssignees() { return false; }
@@ -127,7 +128,7 @@ abstract sealed class TaskTransition {
     /** The leader cancels a task that is not finished. */
     static final class Cancel extends TaskTransition {
         Cancel() {
-            super("CANCEL", "CANCELLED", Set.of("TODO", "IN_PROGRESS", "REVIEW"));
+            super("CANCEL", TaskStatus.CANCELLED, Set.of(TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW));
         }
 
         @Override boolean openToAssignees() { return false; }
