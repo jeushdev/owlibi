@@ -48,7 +48,7 @@ Keep persistence entities, API DTOs and browser presentation models distinct. Ja
 - Enforce task/terms/terminal/first-start rules and optimistic versions, generating safe actor/server-time events in the same transaction.
 - Enforce human-inactivity expiry independently of polling using the specified browser activity protocol; tab close is not authoritative logout.
 - Compute decimal completed points/workload from coherent database state and project-local dates.
-- Authorize four-sheet professor XLSX export from one consistent snapshot with literal user text and bounded resources.
+- Authorize six-sheet professor XLSX export from one consistent snapshot with literal user text and bounded resources.
 - Return stable safe errors; protect cookie/CSRF flows and mark protected responses non-cacheable through every proxy layer.
 
 ### PostgreSQL

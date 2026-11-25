@@ -40,6 +40,16 @@ Pieces that were still owed were added by **Jeush** on the `jeushdev/finish` bra
 
 `ProjectRulesTest`, `ProjectRulesNormalizeTest`, `TemplateCatalogTest`, `CursorTest`, `FieldsTest` and `DatabaseReadinessServiceIT` are not in the reference. They were written by John **with AI assistance** (as reported by Jeush).
 
+## OOP refactor before the presentation (November 2026)
+
+On the `jeushdev/oop-strengthen` branch, Jeush used **Claude Code** to restructure the copied server code for the OOP criteria, without changing what the app does. The same 155 tests pass before and after.
+
+- Added the `TaskStatus`, `ProjectRole` and `DueState` enums and used them in place of status and role strings.
+- Split the Excel report into the `ReportSection` interface, the abstract `ReportSheet` class and six sheet subclasses.
+- Added the `Fields.text(value, field, limit)` overload.
+- Reformatted the dense service code to one statement per line, split `TaskService.transition()` into named rule checks, and renamed the package from `dev.owlibi.reference` to `dev.owlibi`.
+- Wrote [DESIGN.md](DESIGN.md) and the updated OOP sections of the README.
+
 ## Who can explain what
 
 Each member must be able to explain, in about a minute, the files they present. This table is a draft taken from "Who did what"; each person should replace it with the files they found hardest.
