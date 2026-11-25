@@ -1,14 +1,14 @@
 package dev.owlibi.reference.reports;
 
+import dev.owlibi.reference.projects.ProjectRole;
 import dev.owlibi.reference.snapshots.ProjectSnapshot;
 import dev.owlibi.reference.summaries.SummaryDtos;
-import java.util.List;
+import dev.owlibi.reference.tasks.TaskStatus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** The first sheet: project facts, task counts, the report's scope and limits, and the member list. */
 final class ProjectSummarySheet extends ReportSheet {
-    private static final List<String> STATUSES = List.of("TODO", "IN_PROGRESS", "REVIEW", "DONE", "CANCELLED");
 
     private final SummaryDtos.Contribution contribution;
 
@@ -41,15 +41,15 @@ final class ProjectSummarySheet extends ReportSheet {
         row("Project name", snapshot.project().name());
         row("Project description", snapshot.project().description());
         ProjectSnapshot.Member leader = snapshot.members().stream()
-            .filter(member -> member.role().equals("LEADER"))
+            .filter(member -> ProjectRole.from(member.role()).isLeader())
             .findFirst()
             .orElseThrow(ReportBudget::unavailable);
         row("Leader", leader.displayName());
         row("Completed total", display(contribution.totalCompletedPointsDisplay()));
         row("Contribution status", contribution.empty() ? "No completed tasks yet" : "Based on approved Done tasks");
-        for (String status : STATUSES) {
-            long count = snapshot.tasks().stream().filter(task -> task.status().equals(status)).count();
-            row("Task count " + taskStatus(status), count);
+        for (TaskStatus status : TaskStatus.values()) {
+            long count = snapshot.tasks().stream().filter(task -> task.status().equals(status.name())).count();
+            row("Task count " + status.label(), count);
         }
         row("Created UTC", snapshot.project().createdAtUtc());
         row("Project UUID", snapshot.project().id());

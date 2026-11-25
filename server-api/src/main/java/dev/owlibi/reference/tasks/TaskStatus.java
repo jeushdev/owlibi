@@ -15,11 +15,22 @@ package dev.owlibi.reference.tasks;
  * code asks {@code status.isClosed()} instead of comparing strings.
  */
 public enum TaskStatus {
-    TODO,
-    IN_PROGRESS,
-    REVIEW,
-    DONE,
-    CANCELLED;
+    TODO("To do"),
+    IN_PROGRESS("In progress"),
+    REVIEW("In review"),
+    DONE("Done"),
+    CANCELLED("Cancelled");
+
+    private final String label;
+
+    TaskStatus(String label) {
+        this.label = label;
+    }
+
+    /** The readable name shown to people, for example {@code "In progress"}. */
+    public String label() {
+        return label;
+    }
 
     /** Whether the task is finished one way or another (done or cancelled), so it can no longer be edited or accepted. */
     public boolean isClosed() {

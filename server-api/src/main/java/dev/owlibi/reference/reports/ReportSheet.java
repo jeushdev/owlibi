@@ -2,6 +2,7 @@ package dev.owlibi.reference.reports;
 
 import dev.owlibi.reference.reports.ReportStyles.Tone;
 import dev.owlibi.reference.snapshots.ProjectSnapshot;
+import dev.owlibi.reference.tasks.TaskStatus;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -161,14 +162,11 @@ abstract sealed class ReportSheet implements ReportSection
 
     /** The readable name of a task status code. */
     protected static String taskStatus(String status) {
-        return switch (status) {
-            case "TODO" -> "To do";
-            case "IN_PROGRESS" -> "In progress";
-            case "REVIEW" -> "In review";
-            case "DONE" -> "Done";
-            case "CANCELLED" -> "Cancelled";
-            default -> status;
-        };
+        try {
+            return TaskStatus.from(status).label();
+        } catch (IllegalArgumentException unknown) {
+            return status;
+        }
     }
 
     /** A member's name with their UUID, for example {@code "Ana (<member UUID>)"}. */
